@@ -1,0 +1,344 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { UserProfile, AppRole, Empresa, AuditLog } from '../types';
+import { supabase, IS_SUPABASE_CONFIGURED } from './supabase/client';
+
+interface AuthContextType {
+  user: UserProfile | null;
+  role: AppRole;
+  empresa: Empresa | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  isSupabaseConnected: boolean;
+  auditLogs: AuditLog[];
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (nome: string, email: string, password: string, role?: AppRole) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  switchRole: (newRole: AppRole) => void;
+  logAuditEvent: (
+    action: string,
+    resourceType: string,
+    resourceId?: string,
+    changes?: any,
+    severity?: 'low' | 'medium' | 'high' | 'critical'
+  ) => Promise<void>;
+  refreshProfile: () => Promise<void>;
+}
+
+const DEFAULT_EMPRESA: Empresa = {
+  id: 'a0000000-0000-0000-0000-000000000001',
+  razao_social: 'Presty Medick Distribuidora de OPME Ltda.',
+  nome_fantasia: 'Presty Medick OPME',
+  cnpj: '12.345.678/0001-90',
+  ie: '110.293.847.112',
+  endereco: 'Av. Paulista, 1500 - Bela Vista',
+  cidade: 'São Paulo',
+  estado: 'SP',
+  cep: '01310-100',
+  telefone: '(11) 3200-4000',
+  email: 'atendimento@prestymedick.com.br',
+  logo_url: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=200',
+};
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [role, setRole] = useState<AppRole>('admin');
+  const [empresa] = useState<Empresa>(DEFAULT_EMPRESA);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Carrega perfil real e papel do Supabase para o usuário logado
+  const loadSupabaseUserProfile = useCallback(async (authUser: { id: string; email?: string; user_metadata?: any; created_at?: string }) => {
+    try {
+      // 1. Busca perfil na tabela public.profiles
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      // 2. Busca papel na tabela public.user_roles
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      const userRole: AppRole = (roleData?.role as AppRole) || 'admin';
+
+      const userProfile: UserProfile = {
+        id: authUser.id,
+        email: authUser.email || '',
+        nome: profileData?.nome || authUser.user_metadata?.nome || authUser.email?.split('@')[0] || 'Usuário OPME',
+        cargo: profileData?.cargo || authUser.user_metadata?.cargo || 'Membro da Equipe',
+        cpf: profileData?.cpf,
+        telefone: profileData?.telefone,
+        created_at: profileData?.created_at || authUser.created_at || new Date().toISOString(),
+        avatar_url: profileData?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+      };
+
+      setUser(userProfile);
+      setRole(userRole);
+
+      // Carrega logs de auditoria do banco
+      const { data: logs } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (logs && logs.length > 0) {
+        setAuditLogs(logs as AuditLog[]);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar perfil do Supabase:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Monitora sessão ativa ao inicializar e quando o estado de autenticação mudar
+  useEffect(() => {
+    let isMounted = true;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!isMounted) return;
+        if (session?.user) {
+          loadSupabaseUserProfile(session.user);
+        } else {
+          setUser(null);
+          setIsLoading(false);
+        }
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (!isMounted) return;
+        if (session?.user) {
+          await loadSupabaseUserProfile(session.user);
+        } else {
+          setUser(null);
+          setIsLoading(false);
+        }
+      });
+
+      return () => {
+        isMounted = false;
+        subscription.unsubscribe();
+      };
+    } else {
+      // Modo local de demonstração
+      const savedUser = localStorage.getItem('presty_user');
+      const savedRole = localStorage.getItem('presty_role');
+      const savedLogs = localStorage.getItem('presty_audit_logs');
+
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+        setRole((savedRole as AppRole) || 'admin');
+      }
+      if (savedLogs) {
+        setAuditLogs(JSON.parse(savedLogs));
+      }
+      setIsLoading(false);
+    }
+  }, [loadSupabaseUserProfile]);
+
+  const refreshProfile = async () => {
+    if (user?.id && IS_SUPABASE_CONFIGURED) {
+      await loadSupabaseUserProfile({ id: user.id, email: user.email });
+    }
+  };
+
+  const logAuditEvent = async (
+    action: string,
+    resourceType: string,
+    resourceId?: string,
+    changes?: any,
+    severity: 'low' | 'medium' | 'high' | 'critical' = 'medium'
+  ) => {
+    const newLog: AuditLog = {
+      id: `log-${Date.now()}`,
+      action,
+      severity,
+      user_id: user?.id || 'anon',
+      user_email: user?.email || 'sistema@prestymedick.com.br',
+      user_role: role,
+      resource_type: resourceType,
+      resource_id: resourceId,
+      changes,
+      created_at: new Date().toISOString(),
+    };
+
+    setAuditLogs((prev) => [newLog, ...prev]);
+
+    if (IS_SUPABASE_CONFIGURED && user) {
+      try {
+        await supabase.from('audit_logs').insert({
+          action,
+          severity,
+          user_id: user.id,
+          user_email: user.email,
+          user_role: role,
+          resource_type: resourceType,
+          resource_id: resourceId,
+          changes: changes || {},
+        });
+      } catch (err) {
+        console.warn('Erro ao sincronizar log com Supabase:', err);
+      }
+    } else {
+      localStorage.setItem('presty_audit_logs', JSON.stringify([newLog, ...auditLogs].slice(0, 100)));
+    }
+  };
+
+  const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    try {
+      if (IS_SUPABASE_CONFIGURED) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: pass,
+        });
+
+        if (error) {
+          setIsLoading(false);
+          return { success: false, error: error.message };
+        }
+
+        if (data.user) {
+          await loadSupabaseUserProfile(data.user);
+          await logAuditEvent('USER_LOGIN_SUPABASE', 'Auth', data.user.id, { email });
+        }
+      } else {
+        // Fallback local caso usuário use sem banco
+        await new Promise((r) => setTimeout(r, 400));
+        const loggedUser: UserProfile = {
+          id: `usr-${Date.now()}`,
+          email,
+          nome: email.split('@')[0].toUpperCase(),
+          cargo: 'Usuário do Sistema OPME',
+          created_at: new Date().toISOString(),
+        };
+        setUser(loggedUser);
+        localStorage.setItem('presty_user', JSON.stringify(loggedUser));
+        localStorage.setItem('presty_role', role);
+        await logAuditEvent('USER_LOGIN_LOCAL', 'Auth', loggedUser.id, { email });
+      }
+      setIsLoading(false);
+      return { success: true };
+    } catch (err: any) {
+      setIsLoading(false);
+      return { success: false, error: err.message || 'Erro ao realizar login' };
+    }
+  };
+
+  const signup = async (
+    nome: string,
+    email: string,
+    pass: string,
+    newRole: AppRole = 'user'
+  ): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    try {
+      if (IS_SUPABASE_CONFIGURED) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password: pass,
+          options: {
+            data: { nome: nome.trim() },
+          },
+        });
+
+        if (error) {
+          setIsLoading(false);
+          return { success: false, error: error.message };
+        }
+
+        if (data.user) {
+          // Atualiza perfil e papel inicial
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            nome: nome.trim(),
+            email: email.trim(),
+          });
+
+          await supabase.from('user_roles').upsert({
+            user_id: data.user.id,
+            role: newRole,
+          });
+
+          await loadSupabaseUserProfile(data.user);
+          await logAuditEvent('USER_SIGNUP_SUPABASE', 'Auth', data.user.id, { email, role: newRole }, 'high');
+        }
+      } else {
+        await new Promise((r) => setTimeout(r, 400));
+        const newUser: UserProfile = {
+          id: `usr-${Date.now()}`,
+          email,
+          nome,
+          cargo: 'Membro OPME',
+          created_at: new Date().toISOString(),
+        };
+        setUser(newUser);
+        setRole(newRole);
+        localStorage.setItem('presty_user', JSON.stringify(newUser));
+        localStorage.setItem('presty_role', newRole);
+        await logAuditEvent('USER_SIGNUP_LOCAL', 'Auth', newUser.id, { email, role: newRole }, 'high');
+      }
+      setIsLoading(false);
+      return { success: true };
+    } catch (err: any) {
+      setIsLoading(false);
+      return { success: false, error: err.message || 'Erro ao cadastrar usuário' };
+    }
+  };
+
+  const logout = async () => {
+    if (IS_SUPABASE_CONFIGURED) {
+      await supabase.auth.signOut();
+    }
+    if (user) {
+      await logAuditEvent('USER_LOGOUT', 'Auth', user.id, { email: user.email });
+    }
+    setUser(null);
+    localStorage.removeItem('presty_user');
+    localStorage.removeItem('presty_role');
+  };
+
+  const switchRole = (newRole: AppRole) => {
+    logAuditEvent('SWITCH_ROLE', 'Auth', user?.id, { from: role, to: newRole }, 'medium');
+    setRole(newRole);
+    localStorage.setItem('presty_role', newRole);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        role,
+        empresa,
+        isAuthenticated: Boolean(user),
+        isLoading,
+        isSupabaseConnected: IS_SUPABASE_CONFIGURED,
+        auditLogs,
+        login,
+        signup,
+        logout,
+        switchRole,
+        logAuditEvent,
+        refreshProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth deve ser utilizado dentro de um AuthProvider');
+  }
+  return context;
+};
