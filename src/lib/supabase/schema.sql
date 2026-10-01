@@ -616,52 +616,52 @@ CREATE POLICY "Apenas admin le logs de auditoria" ON public.audit_logs FOR SELEC
 
 -- Cadastros e Operações de Negócio
 DROP POLICY IF EXISTS "Autenticados operam hospitais" ON public.hospitais;
-CREATE POLICY "Autenticados operam hospitais" ON public.hospitais FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam hospitais" ON public.hospitais FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam medicos" ON public.medicos;
-CREATE POLICY "Autenticados operam medicos" ON public.medicos FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam medicos" ON public.medicos FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam convenios" ON public.convenios;
-CREATE POLICY "Autenticados operam convenios" ON public.convenios FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam convenios" ON public.convenios FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam equipamentos" ON public.equipamentos;
-CREATE POLICY "Autenticados operam equipamentos" ON public.equipamentos FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam equipamentos" ON public.equipamentos FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam vendedores" ON public.vendedores;
-CREATE POLICY "Autenticados operam vendedores" ON public.vendedores FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam vendedores" ON public.vendedores FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam tecnicos" ON public.tecnicos;
-CREATE POLICY "Autenticados operam tecnicos" ON public.tecnicos FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam tecnicos" ON public.tecnicos FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam cirurgias" ON public.cirurgias;
-CREATE POLICY "Autenticados operam cirurgias" ON public.cirurgias FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam cirurgias" ON public.cirurgias FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam protocolos" ON public.protocolos;
-CREATE POLICY "Autenticados operam protocolos" ON public.protocolos FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam protocolos" ON public.protocolos FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam protocolo_itens" ON public.protocolo_itens;
-CREATE POLICY "Autenticados operam protocolo_itens" ON public.protocolo_itens FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam protocolo_itens" ON public.protocolo_itens FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam produtos" ON public.produtos;
-CREATE POLICY "Autenticados operam produtos" ON public.produtos FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam produtos" ON public.produtos FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam produto_lotes" ON public.produto_lotes;
-CREATE POLICY "Autenticados operam produto_lotes" ON public.produto_lotes FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam produto_lotes" ON public.produto_lotes FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam estoque_movimentos" ON public.estoque_movimentos;
-CREATE POLICY "Autenticados operam estoque_movimentos" ON public.estoque_movimentos FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam estoque_movimentos" ON public.estoque_movimentos FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam vendas" ON public.vendas;
-CREATE POLICY "Autenticados operam vendas" ON public.vendas FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam vendas" ON public.vendas FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam veiculos" ON public.veiculos;
-CREATE POLICY "Autenticados operam veiculos" ON public.veiculos FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam veiculos" ON public.veiculos FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam condutores" ON public.condutores;
-CREATE POLICY "Autenticados operam condutores" ON public.condutores FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam condutores" ON public.condutores FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Autenticados operam checklists" ON public.checklists;
-CREATE POLICY "Autenticados operam checklists" ON public.checklists FOR ALL TO authenticated USING (true);
+CREATE POLICY "Autenticados operam checklists" ON public.checklists FOR ALL TO public USING (true) WITH CHECK (true);
 
 -- 12. BUCKETS DE STORAGE (FOTOS DE VISTORIA E LAUDOS)
 DO $$

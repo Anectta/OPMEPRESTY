@@ -1,63 +1,70 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Cirurgia,
   Protocolo,
   Produto,
-  ProdutoLote,
-  MovimentoEstoque,
   Venda,
-  ComissaoRegra,
-  MetaVenda,
   Veiculo,
   Condutor,
-  ChecklistFrota,
   Hospital,
   Medico,
   Convenio,
   Vendedor,
 } from '../types';
+import {
+  hospitaisService,
+  medicosService,
+  conveniosService,
+  vendedoresService,
+  cirurgiasService,
+  protocolosService,
+  produtosService,
+  vendasService,
+  frotaService,
+} from '../services/databaseService';
+import { IS_SUPABASE_CONFIGURED } from '../lib/supabase/client';
 
-// Mock Initial Data for Presty Medick
+// Baseline fallback data for immediate render & seeding
 const INITIAL_HOSPITAIS: Hospital[] = [
-  { id: 'hosp-1', nome: 'Hospital Israelita Albert Einstein', cnpj: '60.765.823/0001-30', cidade: 'São Paulo', estado: 'SP', contato: 'Centro Cirúrgico OPME - (11) 2151-1234', ativo: true },
-  { id: 'hosp-2', nome: 'Hospital Sírio-Libanês', cnpj: '62.970.389/0001-15', cidade: 'São Paulo', estado: 'SP', contato: 'Farmácia Satélite OPME - (11) 3394-5000', ativo: true },
-  { id: 'hosp-3', nome: 'HCor - Hospital do Coração', cnpj: '60.884.855/0001-54', cidade: 'São Paulo', estado: 'SP', contato: 'Almoxarifado Consignado - (11) 3053-6600', ativo: true },
-  { id: 'hosp-4', nome: 'Hospital Alemão Oswaldo Cruz', cnpj: '60.884.111/0001-20', cidade: 'São Paulo', estado: 'SP', contato: 'SAD / Bloco Cirúrgico - (11) 3549-1000', ativo: true },
+  { id: 'a1000000-0000-0000-0000-000000000001', nome: 'Hospital Israelita Albert Einstein', cnpj: '60.765.823/0001-30', cidade: 'São Paulo', estado: 'SP', contato: 'Centro Cirúrgico OPME - (11) 2151-1234', ativo: true },
+  { id: 'a1000000-0000-0000-0000-000000000002', nome: 'Hospital Sírio-Libanês', cnpj: '62.970.389/0001-15', cidade: 'São Paulo', estado: 'SP', contato: 'Farmácia Satélite OPME - (11) 3394-5000', ativo: true },
+  { id: 'a1000000-0000-0000-0000-000000000003', nome: 'HCor - Hospital do Coração', cnpj: '60.884.855/0001-54', cidade: 'São Paulo', estado: 'SP', contato: 'Almoxarifado Consignado - (11) 3053-6600', ativo: true },
+  { id: 'a1000000-0000-0000-0000-000000000004', nome: 'Hospital Alemão Oswaldo Cruz', cnpj: '60.884.111/0001-20', cidade: 'São Paulo', estado: 'SP', contato: 'SAD / Bloco Cirúrgico - (11) 3549-1000', ativo: true },
 ];
 
 const INITIAL_MEDICOS: Medico[] = [
-  { id: 'med-1', nome: 'Dr. Roberto Silva Mendes', crm: '145892', uf_crm: 'SP', especialidade: 'Cirurgia da Coluna e Joelho', telefone: '(11) 99123-4455', email: 'roberto.mendes@medicos.com.br', ativo: true },
-  { id: 'med-2', nome: 'Dra. Patricia Alencar', crm: '178920', uf_crm: 'SP', especialidade: 'Artroplastia de Quadril', telefone: '(11) 98877-6655', email: 'patricia.alencar@ortopedia.com.br', ativo: true },
-  { id: 'med-3', nome: 'Dr. Fernando Vasconcelos', crm: '123410', uf_crm: 'SP', especialidade: 'Traumatologia Complexa', telefone: '(11) 97111-2233', email: 'f.vasconcelos@trauma.com.br', ativo: true },
+  { id: 'b1000000-0000-0000-0000-000000000001', nome: 'Dr. Roberto Silva Mendes', crm: '145892', uf_crm: 'SP', especialidade: 'Cirurgia da Coluna e Joelho', telefone: '(11) 99123-4455', email: 'roberto.mendes@medicos.com.br', ativo: true },
+  { id: 'b1000000-0000-0000-0000-000000000002', nome: 'Dra. Patricia Alencar', crm: '178920', uf_crm: 'SP', especialidade: 'Artroplastia de Quadril', telefone: '(11) 98877-6655', email: 'patricia.alencar@ortopedia.com.br', ativo: true },
+  { id: 'b1000000-0000-0000-0000-000000000003', nome: 'Dr. Fernando Vasconcelos', crm: '123410', uf_crm: 'SP', especialidade: 'Traumatologia Complexa', telefone: '(11) 97111-2233', email: 'f.vasconcelos@trauma.com.br', ativo: true },
 ];
 
 const INITIAL_CONVENIOS: Convenio[] = [
-  { id: 'conv-1', nome: 'Bradesco Saúde', ans_codigo: '005711', ativo: true },
-  { id: 'conv-2', nome: 'SulAmérica Saúde', ans_codigo: '006246', ativo: true },
-  { id: 'conv-3', nome: 'Amil Assistência Médica', ans_codigo: '326305', ativo: true },
-  { id: 'conv-4', nome: 'Porto Seguro Saúde', ans_codigo: '000582', ativo: true },
+  { id: 'c1000000-0000-0000-0000-000000000001', nome: 'Bradesco Saúde', ans_codigo: '005711', ativo: true },
+  { id: 'c1000000-0000-0000-0000-000000000002', nome: 'SulAmérica Saúde', ans_codigo: '006246', ativo: true },
+  { id: 'c1000000-0000-0000-0000-000000000003', nome: 'Amil Assistência Médica', ans_codigo: '326305', ativo: true },
+  { id: 'c1000000-0000-0000-0000-000000000004', nome: 'Porto Seguro Saúde', ans_codigo: '000582', ativo: true },
 ];
 
 const INITIAL_VENDEDORES: Vendedor[] = [
-  { id: 'vend-1', nome: 'Lucas Guimarães', email: 'lucas.g@prestymedick.com.br', comissao_padrao_pct: 6.0, ativo: true },
-  { id: 'vend-2', nome: 'Mariana Duarte', email: 'mariana.d@prestymedick.com.br', comissao_padrao_pct: 5.5, ativo: true },
-  { id: 'vend-3', nome: 'Rodrigo Santoro', email: 'rodrigo.s@prestymedick.com.br', comissao_padrao_pct: 5.0, ativo: true },
+  { id: 'd1000000-0000-0000-0000-000000000001', nome: 'Lucas Guimarães', email: 'lucas.g@prestymedick.com.br', comissao_padrao_pct: 6.0, ativo: true },
+  { id: 'd1000000-0000-0000-0000-000000000002', nome: 'Mariana Duarte', email: 'mariana.d@prestymedick.com.br', comissao_padrao_pct: 5.5, ativo: true },
+  { id: 'd1000000-0000-0000-0000-000000000003', nome: 'Rodrigo Santoro', email: 'rodrigo.s@prestymedick.com.br', comissao_padrao_pct: 5.0, ativo: true },
 ];
 
 const INITIAL_CIRURGIAS: Cirurgia[] = [
   {
-    id: 'CIR-2026-089',
+    id: 'e1000000-0000-0000-0000-000000000001',
     data: new Date().toISOString().split('T')[0],
     horario: '08:00',
-    hospital_id: 'hosp-1',
+    hospital_id: 'a1000000-0000-0000-0000-000000000001',
     hospital_nome: 'Hospital Israelita Albert Einstein',
-    medico_id: 'med-1',
+    medico_id: 'b1000000-0000-0000-0000-000000000001',
     medico_nome: 'Dr. Roberto Silva Mendes',
     paciente: 'Maria das Graças Oliveira',
     paciente_cpf: '234.567.890-11',
-    convenio_id: 'conv-1',
+    convenio_id: 'c1000000-0000-0000-0000-000000000001',
     convenio_nome: 'Bradesco Saúde',
-    vendedor_id: 'vend-1',
+    vendedor_id: 'd1000000-0000-0000-0000-000000000001',
     vendedor_nome: 'Lucas Guimarães',
     situacao: 'Confirmada',
     equipamento: 'Motor Cirúrgico Stryker TPS',
@@ -66,22 +73,22 @@ const INITIAL_CIRURGIAS: Cirurgia[] = [
     material_previsto: 'Kit Gaiola Cervical PEEK + Parafusos Pediculares Titanium',
     tecnico_nome: 'André Santos (Técnico Instrumentador OPME)',
     observacao: 'Caixas entregues na farmácia central 24h antes para esterilização.',
-    empresa_id: 'emp-001',
+    empresa_id: 'a0000000-0000-0000-0000-000000000001',
     created_at: new Date().toISOString(),
   },
   {
-    id: 'CIR-2026-090',
+    id: 'e1000000-0000-0000-0000-000000000002',
     data: new Date(Date.now() + 86400000).toISOString().split('T')[0],
     horario: '10:30',
-    hospital_id: 'hosp-2',
+    hospital_id: 'a1000000-0000-0000-0000-000000000002',
     hospital_nome: 'Hospital Sírio-Libanês',
-    medico_id: 'med-2',
+    medico_id: 'b1000000-0000-0000-0000-000000000002',
     medico_nome: 'Dra. Patricia Alencar',
     paciente: 'Carlos Eduardo Fontes',
     paciente_cpf: '456.789.012-33',
-    convenio_id: 'conv-2',
+    convenio_id: 'c1000000-0000-0000-0000-000000000002',
     convenio_nome: 'SulAmérica Saúde',
-    vendedor_id: 'vend-2',
+    vendedor_id: 'd1000000-0000-0000-0000-000000000002',
     vendedor_nome: 'Mariana Duarte',
     situacao: 'Agendada',
     equipamento: 'Arthrocare Coblator II',
@@ -90,39 +97,14 @@ const INITIAL_CIRURGIAS: Cirurgia[] = [
     material_previsto: 'Prótese Total de Quadril Ceramica/Polietileno Crosslinked',
     tecnico_nome: 'Felipe Neves (Técnico)',
     observacao: 'Verificar lote de hastes femorais nº 11 e 12 no estoque.',
-    empresa_id: 'emp-001',
+    empresa_id: 'a0000000-0000-0000-0000-000000000001',
     created_at: new Date().toISOString(),
-  },
-];
-
-const INITIAL_PROTOCOLOS: Protocolo[] = [
-  {
-    id: 'prot-1',
-    numero: 'PROT-2026-0082',
-    data: '2026-08-01',
-    medico_nome: 'Dr. Roberto Silva Mendes',
-    crm: '145892/SP',
-    paciente: 'Maria das Graças Oliveira',
-    hospital_nome: 'Hospital Israelita Albert Einstein',
-    convenio_nome: 'Bradesco Saúde',
-    procedimento: 'Artrodese Cervical Anterior 2 Níveis',
-    data_cirurgia: new Date().toISOString().split('T')[0],
-    status: 'Aprovado Convenio',
-    vendedor_nome: 'Lucas Guimarães',
-    valor_total: 48500.00,
-    observacao: 'Cotação aprovada sem ressalvas pelo auditor Bradesco.',
-    created_at: new Date().toISOString(),
-    itens: [
-      { id: 'pi-1', protocolo_id: 'prot-1', produto_codigo: 'OPME-COL-001', descricao: 'Gaiola Cervical PEEK 12x14mm', quantidade: 2, valor_unitario: 8500.00, valor_total: 17000.00, anvisa: '80123450012' },
-      { id: 'pi-2', protocolo_id: 'prot-1', produto_codigo: 'OPME-COL-002', descricao: 'Placa Cervical Titânio 4 Furos', quantidade: 1, valor_unitario: 14500.00, valor_total: 14500.00, anvisa: '80123450013' },
-      { id: 'pi-3', protocolo_id: 'prot-1', produto_codigo: 'OPME-COL-003', descricao: 'Parafuso Cervical Titânio 3.5x14mm', quantidade: 4, valor_unitario: 4250.00, valor_total: 17000.00, anvisa: '80123450014' },
-    ],
   },
 ];
 
 const INITIAL_PRODUTOS: Produto[] = [
   {
-    id: 'p-1',
+    id: 'f1000000-0000-0000-0000-000000000001',
     codigo: 'OPME-COL-001',
     descricao: 'Gaiola Cervical PEEK 12x14mm',
     fabricante: 'Medtronic Spine',
@@ -138,7 +120,7 @@ const INITIAL_PRODUTOS: Produto[] = [
     ativo: true,
   },
   {
-    id: 'p-2',
+    id: 'f1000000-0000-0000-0000-000000000002',
     codigo: 'OPME-QUAD-010',
     descricao: 'Haste Femoral Modular Ti 12mm',
     fabricante: 'Zimmer Biomet',
@@ -154,7 +136,7 @@ const INITIAL_PRODUTOS: Produto[] = [
     ativo: true,
   },
   {
-    id: 'p-3',
+    id: 'f1000000-0000-0000-0000-000000000003',
     codigo: 'OPME-JOE-005',
     descricao: 'Componente Femoral Prótese de Joelho Tam 3',
     fabricante: 'Stryker Orthopaedics',
@@ -171,9 +153,34 @@ const INITIAL_PRODUTOS: Produto[] = [
   },
 ];
 
+const INITIAL_PROTOCOLOS: Protocolo[] = [
+  {
+    id: 'g1000000-0000-0000-0000-000000000001',
+    numero: 'PROT-2026-0082',
+    data: '2026-08-01',
+    medico_nome: 'Dr. Roberto Silva Mendes',
+    crm: '145892/SP',
+    paciente: 'Maria das Graças Oliveira',
+    hospital_nome: 'Hospital Israelita Albert Einstein',
+    convenio_nome: 'Bradesco Saúde',
+    procedimento: 'Artrodese Cervical Anterior 2 Níveis',
+    data_cirurgia: new Date().toISOString().split('T')[0],
+    status: 'Aprovado Convenio',
+    vendedor_nome: 'Lucas Guimarães',
+    valor_total: 48500.00,
+    observacao: 'Cotação aprovada sem ressalvas pelo auditor Bradesco.',
+    created_at: new Date().toISOString(),
+    itens: [
+      { id: 'pi-1', protocolo_id: 'g1000000-0000-0000-0000-000000000001', produto_codigo: 'OPME-COL-001', descricao: 'Gaiola Cervical PEEK 12x14mm', quantidade: 2, valor_unitario: 8500.00, valor_total: 17000.00, anvisa: '80123450012' },
+      { id: 'pi-2', protocolo_id: 'g1000000-0000-0000-0000-000000000001', produto_codigo: 'OPME-COL-002', descricao: 'Placa Cervical Titânio 4 Furos', quantidade: 1, valor_unitario: 14500.00, valor_total: 14500.00, anvisa: '80123450013' },
+      { id: 'pi-3', protocolo_id: 'g1000000-0000-0000-0000-000000000001', produto_codigo: 'OPME-COL-003', descricao: 'Parafuso Cervical Titânio 3.5x14mm', quantidade: 4, valor_unitario: 4250.00, valor_total: 17000.00, anvisa: '80123450014' },
+    ],
+  },
+];
+
 const INITIAL_VENDAS: Venda[] = [
   {
-    id: 'vda-1',
+    id: 'h1000000-0000-0000-0000-000000000001',
     numero: 'VDA-2026-019',
     nota_fiscal: 'NF-89201',
     data: '2026-08-03',
@@ -196,7 +203,7 @@ const INITIAL_VENDAS: Venda[] = [
 
 const INITIAL_VEICULOS: Veiculo[] = [
   {
-    id: 'veic-1',
+    id: 'i1000000-0000-0000-0000-000000000001',
     placa: 'OPM-8E29',
     frota: 'FROTA-LOG-01',
     marca: 'Fiat',
@@ -212,7 +219,7 @@ const INITIAL_VEICULOS: Veiculo[] = [
     situacao: 'Ativo',
   },
   {
-    id: 'veic-2',
+    id: 'i1000000-0000-0000-0000-000000000002',
     placa: 'MED-2A99',
     frota: 'FROTA-LOG-02',
     marca: 'Renault',
@@ -230,8 +237,8 @@ const INITIAL_VEICULOS: Veiculo[] = [
 ];
 
 const INITIAL_CONDUTORES: Condutor[] = [
-  { id: 'cond-1', nome: 'Sérgio Ramos', cpf: '234.111.222-99', cnh: '0129384756', categoria_cnh: 'B', validade_cnh: '2028-05-20', cargo: 'Entregador de Cixas OPME', departamento: 'Logística de Emergência', status: 'Ativo' },
-  { id: 'cond-2', nome: 'Marcos Vinícius', cpf: '888.333.222-11', cnh: '0987654321', categoria_cnh: 'D', validade_cnh: '2027-11-10', cargo: 'Motorista de Distribuição', departamento: 'Frota Pesada', status: 'Ativo' },
+  { id: 'j1000000-0000-0000-0000-000000000001', nome: 'Sérgio Ramos', cpf: '234.111.222-99', cnh: '0129384756', categoria_cnh: 'B', validade_cnh: '2028-05-20', cargo: 'Entregador de Caixas OPME', departamento: 'Logística de Emergência', status: 'Ativo' },
+  { id: 'j1000000-0000-0000-0000-000000000002', nome: 'Marcos Vinícius', cpf: '888.333.222-11', cnh: '0987654321', categoria_cnh: 'D', validade_cnh: '2027-11-10', cargo: 'Motorista de Distribuição', departamento: 'Frota Pesada', status: 'Ativo' },
 ];
 
 export function useData() {
@@ -285,7 +292,61 @@ export function useData() {
     return s ? JSON.parse(s) : INITIAL_CONDUTORES;
   });
 
-  // Save to LocalStorage on changes
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+
+  // Carrega e sincroniza todos os dados do Supabase
+  const loadAllDataFromSupabase = useCallback(async () => {
+    if (!IS_SUPABASE_CONFIGURED) return;
+
+    setIsLoadingData(true);
+    try {
+      const [
+        hospData,
+        medData,
+        convData,
+        vendData,
+        cirData,
+        protData,
+        prodData,
+        vdaData,
+        veicData,
+        condData,
+      ] = await Promise.allSettled([
+        hospitaisService.getAll(),
+        medicosService.getAll(),
+        conveniosService.getAll(),
+        vendedoresService.getAll(),
+        cirurgiasService.getAll(),
+        protocolosService.getAll(),
+        produtosService.getAll(),
+        vendasService.getAll(),
+        frotaService.getVeiculos(),
+        frotaService.getCondutores(),
+      ]);
+
+      if (hospData.status === 'fulfilled' && hospData.value.length > 0) setHospitais(hospData.value);
+      if (medData.status === 'fulfilled' && medData.value.length > 0) setMedicos(medData.value);
+      if (convData.status === 'fulfilled' && convData.value.length > 0) setConvenios(convData.value);
+      if (vendData.status === 'fulfilled' && vendData.value.length > 0) setVendedores(vendData.value);
+      if (cirData.status === 'fulfilled' && cirData.value.length > 0) setCirurgias(cirData.value);
+      if (protData.status === 'fulfilled' && protData.value.length > 0) setProtocolos(protData.value);
+      if (prodData.status === 'fulfilled' && prodData.value.length > 0) setProdutos(prodData.value);
+      if (vdaData.status === 'fulfilled' && vdaData.value.length > 0) setVendas(vdaData.value);
+      if (veicData.status === 'fulfilled' && veicData.value.length > 0) setVeiculos(veicData.value);
+      if (condData.status === 'fulfilled' && condData.value.length > 0) setCondutores(condData.value);
+    } catch (err) {
+      console.warn('Sincronização com Supabase utilizou fallback:', err);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAllDataFromSupabase();
+  }, [loadAllDataFromSupabase]);
+
+  // Persistência secundária em LocalStorage para resiliência offline
   useEffect(() => { localStorage.setItem('presty_hospitais', JSON.stringify(hospitais)); }, [hospitais]);
   useEffect(() => { localStorage.setItem('presty_medicos', JSON.stringify(medicos)); }, [medicos]);
   useEffect(() => { localStorage.setItem('presty_convenios', JSON.stringify(convenios)); }, [convenios]);
@@ -297,147 +358,339 @@ export function useData() {
   useEffect(() => { localStorage.setItem('presty_veiculos', JSON.stringify(veiculos)); }, [veiculos]);
   useEffect(() => { localStorage.setItem('presty_condutores', JSON.stringify(condutores)); }, [condutores]);
 
-  // Handler functions
-  const addCirurgia = (c: Omit<Cirurgia, 'id' | 'created_at'>) => {
-    const newC: Cirurgia = {
+  // ==================== CIRURGIAS ====================
+  const addCirurgia = async (c: Omit<Cirurgia, 'id' | 'created_at'>) => {
+    setIsCloudSyncing(true);
+    let created: Cirurgia = {
       ...c,
-      id: `CIR-2026-0${Math.floor(100 + Math.random() * 900)}`,
+      id: `cir-${Date.now()}`,
       created_at: new Date().toISOString(),
     };
-    setCirurgias((prev) => [newC, ...prev]);
-    return newC;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await cirurgiasService.create(c);
+      } catch (err) {
+        console.warn('Erro ao salvar cirurgia no Supabase:', err);
+      }
+    }
+
+    setCirurgias((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
   };
 
-  const updateCirurgia = (id: string, updates: Partial<Cirurgia>) => {
+  const updateCirurgia = async (id: string, updates: Partial<Cirurgia>) => {
     setCirurgias((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await cirurgiasService.update(id, updates);
+      } catch (err) {
+        console.warn('Erro ao atualizar cirurgia no Supabase:', err);
+      }
+    }
   };
 
-  const addProtocolo = (p: Omit<Protocolo, 'id' | 'numero' | 'created_at'>) => {
-    const newP: Protocolo = {
+  // ==================== PROTOCOLOS ====================
+  const addProtocolo = async (p: Omit<Protocolo, 'id' | 'numero' | 'created_at'>) => {
+    setIsCloudSyncing(true);
+    let created: Protocolo = {
       ...p,
       id: `prot-${Date.now()}`,
-      numero: `PROT-2026-0${Math.floor(100 + Math.random() * 900)}`,
+      numero: `PROT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
       created_at: new Date().toISOString(),
     };
-    setProtocolos((prev) => [newP, ...prev]);
-    return newP;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await protocolosService.create(p);
+      } catch (err) {
+        console.warn('Erro ao salvar protocolo no Supabase:', err);
+      }
+    }
+
+    setProtocolos((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
   };
 
-  const addProduto = (p: Omit<Produto, 'id'>) => {
-    const newP: Produto = {
+  // ==================== PRODUTOS ====================
+  const addProduto = async (p: Omit<Produto, 'id'>) => {
+    setIsCloudSyncing(true);
+    let created: Produto = {
       ...p,
-      id: `p-${Date.now()}`,
+      id: `prod-${Date.now()}`,
     };
-    setProdutos((prev) => [newP, ...prev]);
-    return newP;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await produtosService.create(p);
+      } catch (err) {
+        console.warn('Erro ao salvar produto no Supabase:', err);
+      }
+    }
+
+    setProdutos((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
   };
 
-  // VEÍCULOS CRUD
-  const addVeiculo = (v: Omit<Veiculo, 'id'>) => {
-    const newV: Veiculo = {
+  // ==================== VEÍCULOS ====================
+  const addVeiculo = async (v: Omit<Veiculo, 'id'>) => {
+    setIsCloudSyncing(true);
+    let created: Veiculo = {
       ...v,
       id: `veic-${Date.now()}`,
     };
-    setVeiculos((prev) => [newV, ...prev]);
-    return newV;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await frotaService.createVeiculo(v);
+      } catch (err) {
+        console.warn('Erro ao salvar veículo no Supabase:', err);
+      }
+    }
+
+    setVeiculos((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
   };
 
-  const updateVeiculo = (id: string, updates: Partial<Veiculo>) => {
+  const updateVeiculo = async (id: string, updates: Partial<Veiculo>) => {
     setVeiculos((prev) => prev.map((v) => (v.id === id ? { ...v, ...updates } : v)));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await frotaService.updateVeiculo(id, updates);
+      } catch (err) {
+        console.warn('Erro ao atualizar veículo no Supabase:', err);
+      }
+    }
   };
 
-  const deleteVeiculo = (id: string) => {
+  const deleteVeiculo = async (id: string) => {
     setVeiculos((prev) => prev.filter((v) => v.id !== id));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await frotaService.deleteVeiculo(id);
+      } catch (err) {
+        console.warn('Erro ao excluir veículo no Supabase:', err);
+      }
+    }
   };
 
-  // CONDUTORES CRUD
-  const addCondutor = (c: Omit<Condutor, 'id'>) => {
-    const newC: Condutor = {
+  // ==================== CONDUTORES ====================
+  const addCondutor = async (c: Omit<Condutor, 'id'>) => {
+    setIsCloudSyncing(true);
+    let created: Condutor = {
       ...c,
       id: `cond-${Date.now()}`,
     };
-    setCondutores((prev) => [newC, ...prev]);
-    return newC;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await frotaService.createCondutor(c);
+      } catch (err) {
+        console.warn('Erro ao salvar condutor no Supabase:', err);
+      }
+    }
+
+    setCondutores((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
   };
 
-  const updateCondutor = (id: string, updates: Partial<Condutor>) => {
+  const updateCondutor = async (id: string, updates: Partial<Condutor>) => {
     setCondutores((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await frotaService.updateCondutor(id, updates);
+      } catch (err) {
+        console.warn('Erro ao atualizar condutor no Supabase:', err);
+      }
+    }
   };
 
-  const deleteCondutor = (id: string) => {
+  const deleteCondutor = async (id: string) => {
     setCondutores((prev) => prev.filter((c) => c.id !== id));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await frotaService.deleteCondutor(id);
+      } catch (err) {
+        console.warn('Erro ao excluir condutor no Supabase:', err);
+      }
+    }
   };
 
-  // HOSPITAIS CRUD
-  const addHospital = (h: Omit<Hospital, 'id'>) => {
-    const newH: Hospital = {
+  // ==================== HOSPITAIS ====================
+  const addHospital = async (h: Omit<Hospital, 'id'>) => {
+    setIsCloudSyncing(true);
+    let created: Hospital = {
       ...h,
       id: `hosp-${Date.now()}`,
     };
-    setHospitais((prev) => [newH, ...prev]);
-    return newH;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await hospitaisService.create(h);
+      } catch (err) {
+        console.warn('Erro ao salvar hospital no Supabase:', err);
+      }
+    }
+
+    setHospitais((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
   };
 
-  const updateHospital = (id: string, updates: Partial<Hospital>) => {
+  const updateHospital = async (id: string, updates: Partial<Hospital>) => {
     setHospitais((prev) => prev.map((h) => (h.id === id ? { ...h, ...updates } : h)));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await hospitaisService.update(id, updates);
+      } catch (err) {
+        console.warn('Erro ao atualizar hospital no Supabase:', err);
+      }
+    }
   };
 
-  const deleteHospital = (id: string) => {
+  const deleteHospital = async (id: string) => {
     setHospitais((prev) => prev.filter((h) => h.id !== id));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await hospitaisService.delete(id);
+      } catch (err) {
+        console.warn('Erro ao excluir hospital no Supabase:', err);
+      }
+    }
   };
 
-  // MÉDICOS CRUD
-  const addMedico = (m: Omit<Medico, 'id'>) => {
-    const newM: Medico = {
+  // ==================== MÉDICOS ====================
+  const addMedico = async (m: Omit<Medico, 'id'>) => {
+    setIsCloudSyncing(true);
+    let created: Medico = {
       ...m,
       id: `med-${Date.now()}`,
     };
-    setMedicos((prev) => [newM, ...prev]);
-    return newM;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await medicosService.create(m);
+      } catch (err) {
+        console.warn('Erro ao salvar médico no Supabase:', err);
+      }
+    }
+
+    setMedicos((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
   };
 
-  const updateMedico = (id: string, updates: Partial<Medico>) => {
+  const updateMedico = async (id: string, updates: Partial<Medico>) => {
     setMedicos((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await medicosService.update(id, updates);
+      } catch (err) {
+        console.warn('Erro ao atualizar médico no Supabase:', err);
+      }
+    }
   };
 
-  const deleteMedico = (id: string) => {
+  const deleteMedico = async (id: string) => {
     setMedicos((prev) => prev.filter((m) => m.id !== id));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await medicosService.delete(id);
+      } catch (err) {
+        console.warn('Erro ao excluir médico no Supabase:', err);
+      }
+    }
   };
 
-  // CONVÊNIOS CRUD
-  const addConvenio = (c: Omit<Convenio, 'id'>) => {
-    const newC: Convenio = {
+  // ==================== CONVÊNIOS ====================
+  const addConvenio = async (c: Omit<Convenio, 'id'>) => {
+    setIsCloudSyncing(true);
+    let created: Convenio = {
       ...c,
       id: `conv-${Date.now()}`,
     };
-    setConvenios((prev) => [newC, ...prev]);
-    return newC;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await conveniosService.create(c);
+      } catch (err) {
+        console.warn('Erro ao salvar convênio no Supabase:', err);
+      }
+    }
+
+    setConvenios((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
   };
 
-  const updateConvenio = (id: string, updates: Partial<Convenio>) => {
+  const updateConvenio = async (id: string, updates: Partial<Convenio>) => {
     setConvenios((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await conveniosService.update(id, updates);
+      } catch (err) {
+        console.warn('Erro ao atualizar convênio no Supabase:', err);
+      }
+    }
   };
 
-  const deleteConvenio = (id: string) => {
+  const deleteConvenio = async (id: string) => {
     setConvenios((prev) => prev.filter((c) => c.id !== id));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await conveniosService.delete(id);
+      } catch (err) {
+        console.warn('Erro ao excluir convênio no Supabase:', err);
+      }
+    }
   };
 
-  // VENDEDORES CRUD
-  const addVendedor = (v: Omit<Vendedor, 'id'>) => {
-    const newV: Vendedor = {
+  // ==================== VENDEDORES ====================
+  const addVendedor = async (v: Omit<Vendedor, 'id'>) => {
+    setIsCloudSyncing(true);
+    let created: Vendedor = {
       ...v,
       id: `vend-${Date.now()}`,
     };
-    setVendedores((prev) => [newV, ...prev]);
-    return newV;
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await vendedoresService.create(v);
+      } catch (err) {
+        console.warn('Erro ao salvar vendedor no Supabase:', err);
+      }
+    }
+
+    setVendedores((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
   };
 
-  const updateVendedor = (id: string, updates: Partial<Vendedor>) => {
+  const updateVendedor = async (id: string, updates: Partial<Vendedor>) => {
     setVendedores((prev) => prev.map((v) => (v.id === id ? { ...v, ...updates } : v)));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await vendedoresService.update(id, updates);
+      } catch (err) {
+        console.warn('Erro ao atualizar vendedor no Supabase:', err);
+      }
+    }
   };
 
-  const deleteVendedor = (id: string) => {
+  const deleteVendedor = async (id: string) => {
     setVendedores((prev) => prev.filter((v) => v.id !== id));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await vendedoresService.delete(id);
+      } catch (err) {
+        console.warn('Erro ao excluir vendedor no Supabase:', err);
+      }
+    }
   };
 
   return {
@@ -451,6 +704,9 @@ export function useData() {
     vendas,
     veiculos,
     condutores,
+    isLoadingData,
+    isCloudSyncing,
+    refreshData: loadAllDataFromSupabase,
     addCirurgia,
     updateCirurgia,
     addProtocolo,

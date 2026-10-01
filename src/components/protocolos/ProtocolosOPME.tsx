@@ -54,13 +54,13 @@ export const ProtocolosOPME: React.FC = () => {
     return itemsList.reduce((acc, item) => acc + item.quantidade * item.valor_unitario, 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.paciente.trim()) return;
 
     const totalVal = calculateTotal();
 
-    const newP = addProtocolo({
+    const newP = await addProtocolo({
       data: new Date().toISOString().split('T')[0],
       medico_nome: formData.medico_nome,
       crm: formData.crm,

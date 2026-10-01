@@ -124,7 +124,7 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
     });
   }, [enrichedCirurgias, searchTerm, selectedHospital, selectedSituacao]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.paciente.trim()) return;
 
@@ -133,7 +133,7 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
     const convObj = convenios.find((c) => c.id === formData.convenio_id);
     const vendObj = vendedores.find((v) => v.id === formData.vendedor_id);
 
-    const created = addCirurgia({
+    const created = await addCirurgia({
       data: formData.data,
       horario: formData.horario,
       hospital_id: formData.hospital_id,

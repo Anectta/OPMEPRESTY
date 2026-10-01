@@ -38,11 +38,11 @@ export const GestaoEstoque: React.FC = () => {
       p.fabricante.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.codigo || !formData.descricao) return;
 
-    const newP = addProduto(formData);
+    const newP = await addProduto(formData);
     logAuditEvent('CREATE_PRODUTO_OPME', 'Estoque', newP.id, { codigo: formData.codigo, anvisa: formData.anvisa });
     setIsModalOpen(false);
   };
