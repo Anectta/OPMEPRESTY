@@ -3,6 +3,7 @@ import { useData } from '../../hooks/useData';
 import { useAuth } from '../../hooks/useAuth';
 import { Cirurgia, SituacaoCirurgia } from '../../types';
 import { getStatusBadge, formatDate, formatBRL } from '../../lib/utils';
+import { getActiveVendedor, isCirurgiaOfVendedor, canUserSetSurgeryDate } from '../../lib/vendedorHelper';
 import {
   Calendar,
   Plus,
@@ -29,20 +30,20 @@ import {
   RotateCcw,
   Sliders,
   FileSpreadsheet,
-  Layers,
-  MapPin,
-  FileText
+  FileText,
+  CalendarCheck,
+  Sparkles
 } from 'lucide-react';
 
-export type InternalTab = 'overview' | 'agendamento' | 'grade_frota';
+export type InternalTab = 'overview' | 'agendamento' | 'finalizadas';
 
 interface Props {
   initialTab?: InternalTab;
 }
 
 export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
-  const { cirurgias, hospitais, medicos, convenios, vendedores, produtos, veiculos, addCirurgia, updateCirurgia } = useData();
-  const { logAuditEvent, user } = useAuth();
+  const { cirurgias, hospitais, medicos, convenios, vendedores, produtos, protocolos, addCirurgia, updateCirurgia, updateProtocolo } = useData();
+  const { logAuditEvent, user, role } = useAuth();
 
   const [activeTab, setActiveTab] = useState<InternalTab>(initialTab);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,22 +51,39 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
   const [selectedSituacao, setSelectedSituacao] = useState('todas');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Escopo de Vendedor (somente pode ver e manipular suas próprias cirurgias)
+  const activeVendedor = useMemo(() => getActiveVendedor(user, vendedores), [user, vendedores]);
+  const isVendedorScope = role === 'vendedor' || (role as string) === 'comercial';
+
+  const scopedCirurgias = useMemo(() => {
+    if (!isVendedorScope) return cirurgias;
+    return cirurgias.filter(c => isCirurgiaOfVendedor(c, activeVendedor));
+  }, [cirurgias, isVendedorScope, activeVendedor]);
+
   // Date range filter state for Overview
   const [dateStart, setDateStart] = useState('2026-08-01');
   const [dateEnd, setDateEnd] = useState('2026-08-31');
   const [quickDatePreset, setQuickDatePreset] = useState<'hoje' | 'semana' | 'mes' | 'todos'>('mes');
 
-  // Form State for new Surgery
+  // Modal para o vendedor informar a data da cirurgia confirmada pela OPME
+  const [cirurgiaParaAgendar, setCirurgiaParaAgendar] = useState<Cirurgia | null>(null);
+  const [dataAgendamento, setDataAgendamento] = useState('');
+  const [horarioAgendamento, setHorarioAgendamento] = useState('08:00');
+  const [obsAgendamento, setObsAgendamento] = useState('');
+
+  // Form State for new Surgery registered by OPME
   const [formData, setFormData] = useState({
+    numero_it: '',
     data: new Date().toISOString().split('T')[0],
     horario: '08:00',
+    data_a_definir: false,
     hospital_id: hospitais[0]?.id || '',
     medico_id: medicos[0]?.id || '',
     paciente: '',
     paciente_cpf: '',
     convenio_id: convenios[0]?.id || '',
-    vendedor_id: vendedores[0]?.id || '',
-    situacao: 'Agendada' as SituacaoCirurgia,
+    vendedor_id: isVendedorScope && activeVendedor ? activeVendedor.id : (vendedores[0]?.id || ''),
+    situacao: 'Confirmada' as SituacaoCirurgia,
     equipamento: '',
     acessorio: '',
     ld_ct: '',
@@ -74,11 +92,18 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
     observacao: '',
   });
 
+  // Cirurgias confirmadas pela OPME que aguardam o vendedor informar a data
+  const cirurgiasAguardandoData = useMemo(() => {
+    return scopedCirurgias.filter(c => {
+      const sit = c.situacao || c.status;
+      return (sit === 'Confirmada' || c.data_a_definir === true) && (!c.data || c.data_a_definir);
+    });
+  }, [scopedCirurgias]);
+
   // Enriched Surgeries with derived logistics statuses & contents
   const enrichedCirurgias = useMemo(() => {
-    return cirurgias.map((c, index) => {
+    return scopedCirurgias.map((c, index) => {
       const logisticaStatusList = ['Confirmada', 'Agendada', 'Em Trânsito', 'Entregue', 'Devolvida Parcial'];
-      const localAtualList = ['Central de Distribuição', 'Em Trânsito - Sprinter #01', 'Centro Cirúrgico Bloco A', 'Posto H. Einstein', 'Esterilização OPME'];
       const conteudoOpmeList = [
         'Prótese Quadril Híbrida + Par Parafusos',
         'Kit Artroplastia Joelho Total Titanium',
@@ -88,18 +113,19 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
       ];
 
       const statusLogistico = logisticaStatusList[index % logisticaStatusList.length];
-      const localAtual = localAtualList[index % localAtualList.length];
       const conteudoOpme = c.material_previsto || conteudoOpmeList[index % conteudoOpmeList.length];
+      const itNumero = c.numero_it || (c.id.startsWith('cir-') ? c.id.replace('cir-', '') : c.id);
 
       return {
         ...c,
-        kitId: `KIT-${c.id.replace('cir-', '2026-')}`,
+        numero_it: itNumero,
+        numero_protocolo: c.protocolo?.numero_protocolo || `PROT-${itNumero}`,
+        kitId: `IT ${itNumero}`,
         statusLogistico,
-        localAtual,
         conteudoOpme,
       };
     });
-  }, [cirurgias]);
+  }, [scopedCirurgias]);
 
   // Filtered Surgeries
   const filteredCirurgias = useMemo(() => {
@@ -107,16 +133,54 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
       const matchesSearch =
         c.paciente.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.medico_nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.vendedor_nome && c.vendedor_nome.toLowerCase().includes(searchTerm.toLowerCase())) ||
         c.hospital_nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.numero_it && c.numero_it.toLowerCase().includes(searchTerm.toLowerCase())) ||
         c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.kitId.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesHospital = selectedHospital === 'todos' || c.hospital_id === selectedHospital;
-      const matchesSituacao = selectedSituacao === 'todas' || c.situacao === selectedSituacao;
+      const currentSit = c.situacao || c.status || 'Agendada';
+      const matchesSituacao = selectedSituacao === 'todas' || currentSit === selectedSituacao;
 
       return matchesSearch && matchesHospital && matchesSituacao;
     });
   }, [enrichedCirurgias, searchTerm, selectedHospital, selectedSituacao]);
+
+  // Cirurgias Finalizadas (concluídas com status correspondente)
+  const cirurgiasFinalizadas = useMemo(() => {
+    return enrichedCirurgias.filter((c) => {
+      const sit = (c.situacao || '').toLowerCase();
+      const st = (c.status || '').toLowerCase();
+      return sit === 'finalizada' || st === 'finalizada' || !!c.finalizada_em;
+    });
+  }, [enrichedCirurgias]);
+
+  // Cirurgias Ativas (em andamento, agendadas, confirmadas, etc.)
+  const cirurgiasAtivas = useMemo(() => {
+    return enrichedCirurgias.filter((c) => {
+      const sit = (c.situacao || '').toLowerCase();
+      const st = (c.status || '').toLowerCase();
+      return sit !== 'finalizada' && st !== 'finalizada' && !c.finalizada_em;
+    });
+  }, [enrichedCirurgias]);
+
+  // Lista filtrada de Cirurgias Finalizadas para a aba exclusiva
+  const filteredFinalizadas = useMemo(() => {
+    return cirurgiasFinalizadas.filter((c) => {
+      const matchesSearch =
+        c.paciente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.medico_nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.vendedor_nome && c.vendedor_nome.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        c.hospital_nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.numero_it && c.numero_it.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.finalizada_por && c.finalizada_por.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesHospital = selectedHospital === 'todos' || c.hospital_id === selectedHospital;
+      return matchesSearch && matchesHospital;
+    });
+  }, [cirurgiasFinalizadas, searchTerm, selectedHospital]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,11 +189,18 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
     const hospObj = hospitais.find((h) => h.id === formData.hospital_id);
     const medObj = medicos.find((m) => m.id === formData.medico_id);
     const convObj = convenios.find((c) => c.id === formData.convenio_id);
-    const vendObj = vendedores.find((v) => v.id === formData.vendedor_id);
+    const vendObj = isVendedorScope && activeVendedor ? activeVendedor : vendedores.find((v) => v.id === formData.vendedor_id);
+    const finalVendedorId = isVendedorScope && activeVendedor ? activeVendedor.id : formData.vendedor_id;
+    const finalVendedorNome = isVendedorScope && activeVendedor ? activeVendedor.nome : (vendObj?.nome || 'Vendedor');
+    const itGerado = formData.numero_it.trim() || `${Math.floor(550000 + Math.random() * 50000)}`;
+
+    const isAguardandoData = formData.data_a_definir || formData.situacao === 'Confirmada';
 
     const created = await addCirurgia({
-      data: formData.data,
+      numero_it: itGerado,
+      data: formData.data_a_definir ? '' : formData.data,
       horario: formData.horario,
+      data_a_definir: isAguardandoData,
       hospital_id: formData.hospital_id,
       hospital_nome: hospObj?.nome || 'Hospital Não Especificado',
       medico_id: formData.medico_id,
@@ -138,9 +209,10 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
       paciente_cpf: formData.paciente_cpf,
       convenio_id: formData.convenio_id,
       convenio_nome: convObj?.nome || 'Convênio',
-      vendedor_id: formData.vendedor_id,
-      vendedor_nome: vendObj?.nome || 'Vendedor',
+      vendedor_id: finalVendedorId,
+      vendedor_nome: finalVendedorNome,
       situacao: formData.situacao,
+      status: isAguardandoData ? 'AGUARDANDO_AUTORIZACAO' : 'AUTORIZADA_E_AGENDADA',
       equipamento: formData.equipamento,
       acessorio: formData.acessorio,
       ld_ct: formData.ld_ct,
@@ -151,8 +223,179 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
       created_by: user?.id,
     });
 
-    logAuditEvent('CREATE_CIRURGIA', 'MapaCirurgico', created.id, { paciente: formData.paciente, hospital: hospObj?.nome }, 'medium');
+    await logAuditEvent(
+      'CREATE_CIRURGIA',
+      'MapaCirurgico',
+      created.numero_it || created.id,
+      {
+        cirurgia_id: created.id,
+        numero_it: created.numero_it,
+        paciente: formData.paciente,
+        hospital: hospObj?.nome,
+        medico: medObj?.nome,
+        vendedor: finalVendedorNome,
+        data: formData.data_a_definir ? 'A definir pelo vendedor' : formData.data,
+        horario: formData.horario,
+        situacao: formData.situacao,
+        data_a_definir: isAguardandoData,
+        criado_por: user?.nome,
+        usuario_email: user?.email,
+        papel: role
+      },
+      'medium'
+    );
     setIsModalOpen(false);
+  };
+
+  // Salvar a data informada pelo vendedor
+  const handleSalvarDataCirurgia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cirurgiaParaAgendar || !dataAgendamento) {
+      alert('Por favor, informe a data da cirurgia.');
+      return;
+    }
+
+    const c = cirurgiaParaAgendar;
+    const novaData = dataAgendamento;
+    const novoHorario = horarioAgendamento || '08:00';
+
+    await updateCirurgia(c.id, {
+      data: novaData,
+      horario: novoHorario,
+      situacao: 'Agendada',
+      status: 'AUTORIZADA_E_AGENDADA',
+      data_a_definir: false,
+      data_definida_por: user?.nome || 'Vendedor Responsável',
+      data_definida_em: new Date().toISOString(),
+      observacao: obsAgendamento
+        ? `${c.observacao ? c.observacao + ' | ' : ''}Data confirmada pelo vendedor (${user?.nome}): ${obsAgendamento}`
+        : c.observacao,
+    });
+
+    // Se houver protocolo vinculado na base, sincroniza a data da cirurgia
+    const matchingProtocolo = protocolos.find(
+      (p) => p.numero_it === c.numero_it || p.id === c.protocolo_id
+    );
+    if (matchingProtocolo) {
+      await updateProtocolo(matchingProtocolo.id, {
+        data_cirurgia: novaData,
+        status: 'AUTORIZADO',
+      });
+    }
+
+    await logAuditEvent(
+      'DEFINIR_DATA_CIRURGIA',
+      'MapaCirurgico',
+      c.numero_it || c.id,
+      {
+        cirurgia_id: c.id,
+        numero_it: c.numero_it,
+        paciente: c.paciente,
+        hospital: c.hospital_nome,
+        medico: c.medico_nome,
+        vendedor: c.vendedor_nome,
+        data_anterior: c.data || 'A definir',
+        nova_data: novaData,
+        novo_horario: novoHorario,
+        definido_por: user?.nome,
+        usuario_email: user?.email,
+        papel: role,
+        observacoes: obsAgendamento,
+        situacao_anterior: c.situacao || 'Confirmada',
+        nova_situacao: 'Agendada',
+      },
+      'high'
+    );
+
+    setCirurgiaParaAgendar(null);
+    setObsAgendamento('');
+  };
+
+  // Finalizar cirurgia completamente concluída e redirecionar para a lista de finalizadas
+  const handleFinalizarCirurgia = async (c: Cirurgia) => {
+    const confirmacao = window.confirm(
+      `Confirmar finalização da cirurgia IT ${c.numero_it || c.id} (${c.paciente})?\n\nEsta ação registrará a cirurgia como 100% concluída e a transferirá para a lista de Cirurgias Finalizadas.`
+    );
+    if (!confirmacao) return;
+
+    const finalizadoEm = new Date().toISOString();
+    const finalizadoPor = user?.nome || 'Operador OPME';
+
+    await updateCirurgia(c.id, {
+      situacao: 'Finalizada',
+      status: 'FINALIZADA',
+      finalizada_em: finalizadoEm,
+      finalizada_por: finalizadoPor,
+      observacao: c.observacao
+        ? `${c.observacao} | Finalizada em ${new Date().toLocaleDateString('pt-BR')} por ${finalizadoPor}`
+        : `Finalizada em ${new Date().toLocaleDateString('pt-BR')} por ${finalizadoPor}`,
+    });
+
+    // Se houver protocolo vinculado, atualiza status para FINALIZADO
+    const matchingProtocolo = protocolos.find(
+      (p) => p.numero_it === c.numero_it || p.id === c.protocolo_id
+    );
+    if (matchingProtocolo) {
+      await updateProtocolo(matchingProtocolo.id, {
+        status: 'FINALIZADO',
+      });
+    }
+
+    await logAuditEvent(
+      'FINALIZAR_CIRURGIA',
+      'MapaCirurgico',
+      c.numero_it || c.id,
+      {
+        cirurgia_id: c.id,
+        numero_it: c.numero_it,
+        paciente: c.paciente,
+        hospital: c.hospital_nome,
+        medico: c.medico_nome,
+        vendedor: c.vendedor_nome,
+        situacao_anterior: c.situacao || c.status,
+        nova_situacao: 'Finalizada',
+        novo_status: 'FINALIZADA',
+        finalizada_por: finalizadoPor,
+        finalizada_em: finalizadoEm,
+        usuario_email: user?.email,
+        papel: role,
+      },
+      'high'
+    );
+
+    // Navega imediatamente para a lista de cirurgias finalizadas conforme solicitação
+    setActiveTab('finalizadas');
+  };
+
+  // Reabrir cirurgia caso necessário
+  const handleReabrirCirurgia = async (c: Cirurgia) => {
+    const confirmacao = window.confirm(
+      `Deseja reabrir a cirurgia IT ${c.numero_it || c.id} (${c.paciente})?\nEla voltará para a lista de cirurgias ativas com situação "Realizada".`
+    );
+    if (!confirmacao) return;
+
+    await updateCirurgia(c.id, {
+      situacao: 'Realizada',
+      status: 'REALIZADA',
+      finalizada_em: undefined,
+      finalizada_por: undefined,
+    });
+
+    await logAuditEvent(
+      'REABRIR_CIRURGIA',
+      'MapaCirurgico',
+      c.numero_it || c.id,
+      {
+        cirurgia_id: c.id,
+        numero_it: c.numero_it,
+        paciente: c.paciente,
+        hospital: c.hospital_nome,
+        reaberto_por: user?.nome,
+        usuario_email: user?.email,
+        papel: role,
+      },
+      'medium'
+    );
   };
 
   // Helper for KPI Sparklines
@@ -183,7 +426,99 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
   return (
     <div className="space-y-3.5 animate-in fade-in duration-300">
       
-      {/* Module Navigation & Action Header */}
+      {/* Banner de Escopo do Vendedor */}
+      {isVendedorScope && (
+        <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-xl text-amber-700 shrink-0">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-amber-950 flex items-center gap-2">
+                Mapa Cirúrgico Restrito por Representante
+                <span className="px-2 py-0.5 rounded-full bg-amber-200 text-[10px] font-black uppercase text-amber-900">
+                  Somente Suas Cirurgias
+                </span>
+              </p>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                Você só visualiza e edita as cirurgias do seu perfil comercial: <strong>{activeVendedor?.nome || user?.nome}</strong> ({scopedCirurgias.length} cirurgias no seu escopo).
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Banner de Cirurgias Confirmadas pela OPME Aguardando Definição de Data */}
+      {cirurgiasAguardandoData.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50 border-2 border-amber-400 dark:border-amber-600 rounded-2xl p-4 text-amber-950 dark:text-amber-100 shadow-sm space-y-3 animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-500 text-white rounded-xl shadow-xs shrink-0 animate-pulse">
+                <CalendarCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2 text-amber-950 dark:text-white">
+                  Cirurgias Confirmadas pela OPME — Aguardando Data do Vendedor
+                  <span className="px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-[10px] font-black text-amber-900 dark:text-amber-100">
+                    {cirurgiasAguardandoData.length} pendente{cirurgiasAguardandoData.length > 1 ? 's' : ''}
+                  </span>
+                </h3>
+                <p className="text-[11px] text-amber-900 dark:text-amber-200 mt-0.5">
+                  O setor de OPME cadastrou e confirmou as cirurgias abaixo. O vendedor responsável deve informar a data e o horário para agendamento definitivo e liberação dos materiais.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+            {cirurgiasAguardandoData.map((c) => (
+              <div
+                key={c.id}
+                className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/80 rounded-xl p-3 shadow-xs flex flex-col justify-between gap-2"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-black text-blue-600 dark:text-blue-400">
+                      IT {c.numero_it || c.id}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+                      Confirmada OPME
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                    {c.paciente}
+                  </p>
+                  <p className="text-[10px] text-slate-500 line-clamp-1">
+                    {c.hospital_nome} • Dr. {c.medico_nome}
+                  </p>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    Vendedor: <strong>{c.vendedor_nome || 'Não informado'}</strong>
+                  </p>
+                  {c.material_previsto && (
+                    <p className="text-[10px] text-slate-600 dark:text-slate-300 italic line-clamp-1 bg-slate-50 dark:bg-slate-800/60 p-1 rounded">
+                      {c.material_previsto}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setCirurgiaParaAgendar(c);
+                    setDataAgendamento(c.data || new Date().toISOString().split('T')[0]);
+                    setHorarioAgendamento(c.horario || '08:00');
+                    setObsAgendamento('');
+                  }}
+                  className="w-full mt-1 py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-lg shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  Informar Data da Cirurgia
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
           <div>
@@ -193,15 +528,12 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
               </div>
               <div>
                 <h1 className="text-base font-black tracking-tight text-slate-900 dark:text-white">
-                  Painel de Gestão Logística OPME - Mapa Cirúrgico
+                  Mapa Cirúrgico OPME
                 </h1>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Controle unificado de kits OPME, separação de estoques, rotas de frota, vistorias e atendimento a hospitais.
+                  Controle unificado de cirurgias, protocolos OPME, reservas de materiais e atendimento a hospitais.
                 </p>
               </div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 self-start ml-2">
-                Visão Operacional 2026
-              </span>
             </div>
           </div>
 
@@ -290,15 +622,15 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
             </button>
 
             <button
-              onClick={() => setActiveTab('grade_frota')}
+              onClick={() => setActiveTab('finalizadas')}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                activeTab === 'grade_frota'
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                activeTab === 'finalizadas'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                   : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
               }`}
             >
-              <Truck className="w-3.5 h-3.5" />
-              Grade Horária da Frota
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Cirurgias Finalizadas ({cirurgiasFinalizadas.length})
             </button>
           </div>
 
@@ -312,108 +644,8 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
       {/* ==================== TAB 1: VISÃO OPERACIONAL (OVERVIEW) ==================== */}
       {activeTab === 'overview' && (
         <div className="space-y-3.5">
-          
-          {/* Top 4 KPI Cards Inspired Directly by Reference Image */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-            
-            {/* KPI 1: Total de Kit/OPME Movimentados */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2 relative overflow-hidden group">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Total de Kit/OPME Movimentados
-                </span>
-                <span className="p-1 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                  <Boxes className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">2.345</p>
-                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    +12.4% vs mês anterior
-                  </p>
-                </div>
-                {renderSparkline([120, 150, 180, 140, 210, 240, 280, 310, 290, 345], '#2563EB', '#3B82F6')}
-              </div>
-            </div>
-
-            {/* KPI 2: Tempo Médio de Preparo/Expedição */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2 relative overflow-hidden group">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Tempo Médio de Preparo/Expedição
-                </span>
-                <span className="p-1 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
-                  <Clock className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">2.1 Dias</p>
-                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    -0.4 dias (Ganho de agilidade)
-                  </p>
-                </div>
-                {renderSparkline([4.2, 3.8, 3.5, 3.1, 2.9, 2.7, 2.4, 2.2, 2.1], '#10B981', '#10B981')}
-              </div>
-            </div>
-
-            {/* KPI 3: Acurácia de Inventário OPME */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2 relative overflow-hidden group">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Acurácia de Inventário OPME
-                </span>
-                <span className="p-1 rounded-md bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                  <ShieldCheck className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">98.7%</p>
-                  <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-0.5">
-                    Conformidade ANVISA / Lotes
-                  </p>
-                </div>
-                {renderSparkline([95.2, 96.1, 97.0, 96.8, 97.5, 98.1, 98.4, 98.7], '#059669')}
-              </div>
-            </div>
-
-            {/* KPI 4: Entregas Pontuais (OTD) */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2 relative overflow-hidden group">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Entregas Pontuais (OTD)
-                </span>
-                <span className="p-1 rounded-md bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                  <Truck className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">1.102</p>
-                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                    96.4% dentro da janela
-                  </p>
-                </div>
-                {/* Mini Bar Chart */}
-                <div className="flex items-end gap-1 h-7">
-                  <span className="w-2 bg-blue-300 dark:bg-blue-800 rounded-t h-[40%]"></span>
-                  <span className="w-2 bg-blue-400 dark:bg-blue-700 rounded-t h-[60%]"></span>
-                  <span className="w-2 bg-blue-500 dark:bg-blue-600 rounded-t h-[80%]"></span>
-                  <span className="w-2 bg-blue-600 dark:bg-blue-500 rounded-t h-[55%]"></span>
-                  <span className="w-2 bg-blue-700 dark:bg-blue-400 rounded-t h-[90%]"></span>
-                  <span className="w-2 bg-blue-600 dark:bg-blue-500 rounded-t h-[100%]"></span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Middle Row 1: 3 Visual Charts (Kits por Hospital, Status em Preparo, Kits Preparados por Dia) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
+          {/* Operational Overview Charts (Kits por Hospital e Devoluções) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
             
             {/* Chart 1: Kits por Hospital Atendido (Donut + Legend) */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs space-y-3">
@@ -488,167 +720,6 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
               </div>
             </div>
 
-            {/* Chart 2: Status das Cirurgias em Tempo de Preparo */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-blue-600" />
-                  Status das Cirurgias em Tempo de Preparo
-                </h3>
-                <span className="text-[10px] font-bold text-slate-400">Fluxo Interno</span>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-4 py-1">
-                {/* Donut SVG */}
-                <div className="relative w-32 h-32 shrink-0">
-                  <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 transform">
-                    <circle cx="50" cy="50" r="38" fill="transparent" stroke="#E2E8F0" strokeWidth="16" className="dark:stroke-slate-800" />
-                    {/* Aprovadas: 68% */}
-                    <circle cx="50" cy="50" r="38" fill="transparent" stroke="#0284C7" strokeWidth="16" strokeDasharray="162 76" strokeDashoffset="0" />
-                    {/* Em Processamento: 22% */}
-                    <circle cx="50" cy="50" r="38" fill="transparent" stroke="#38BDF8" strokeWidth="16" strokeDasharray="52 186" strokeDashoffset="-162" />
-                    {/* Atrasadas: 10% */}
-                    <circle cx="50" cy="50" r="38" fill="transparent" stroke="#EA580C" strokeWidth="16" strokeDasharray="24 214" strokeDashoffset="-214" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-base font-black text-slate-900 dark:text-white">68%</span>
-                    <span className="text-[9px] font-bold text-emerald-600">Aprovadas</span>
-                  </div>
-                </div>
-
-                {/* Status Breakdown */}
-                <div className="space-y-2 w-full">
-                  <div className="p-2 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 flex items-center justify-between">
-                    <div>
-                      <p className="text-[11px] font-extrabold text-sky-900 dark:text-sky-300">Aprovadas & Pronto Envio</p>
-                      <p className="text-[9px] text-sky-600 dark:text-sky-400 font-medium">Kit verificado e lacrado</p>
-                    </div>
-                    <span className="text-sm font-black text-sky-700 dark:text-sky-300">68%</span>
-                  </div>
-
-                  <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                    <div>
-                      <p className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200">Em Processamento</p>
-                      <p className="text-[9px] text-slate-400 font-medium">Separando no almoxarifado</p>
-                    </div>
-                    <span className="text-sm font-black text-slate-700 dark:text-slate-300">22%</span>
-                  </div>
-
-                  <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-between">
-                    <div>
-                      <p className="text-[11px] font-extrabold text-amber-900 dark:text-amber-300">Atrasadas / Alerta Lote</p>
-                      <p className="text-[9px] text-amber-600 dark:text-amber-400 font-medium">Aguardando laudo técnico</p>
-                    </div>
-                    <span className="text-sm font-black text-amber-700 dark:text-amber-300">10%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Chart 3: Kits Preparados por Dia e Horário */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <Package className="w-3.5 h-3.5 text-blue-600" />
-                  Kits Preparados por Dia da Semana
-                </h3>
-                <span className="text-[10px] font-bold text-slate-400">Volume Diário</span>
-              </div>
-
-              {/* Bar Chart Representation */}
-              <div className="pt-2 pb-1 space-y-2">
-                <div className="grid grid-cols-7 gap-1.5 items-end h-36">
-                  {[
-                    { day: 'Dom', val: 150, max: 180 },
-                    { day: 'Seg', val: 140, max: 180 },
-                    { day: 'Ter', val: 160, max: 180 },
-                    { day: 'Qua', val: 140, max: 180 },
-                    { day: 'Qui', val: 150, max: 180 },
-                    { day: 'Sex', val: 140, max: 180 },
-                    { day: 'Sáb', val: 160, max: 180 },
-                  ].map((item, idx) => {
-                    const heightPct = Math.round((item.val / item.max) * 100);
-                    return (
-                      <div key={idx} className="flex flex-col items-center gap-1 group h-full justify-end">
-                        <span className="text-[9px] font-mono font-bold text-slate-500 opacity-80 group-hover:opacity-100">
-                          {item.val}
-                        </span>
-                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-t-md h-full flex items-end p-0.5">
-                          <div
-                            style={{ height: `${heightPct}%` }}
-                            className="w-full bg-gradient-to-t from-blue-700 to-sky-500 dark:from-blue-600 dark:to-cyan-400 rounded-t-sm transition-all group-hover:brightness-110"
-                          ></div>
-                        </div>
-                        <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400">
-                          {item.day}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-1.5 font-medium">
-                  <span>Média diária: 148.5 kits</span>
-                  <span className="text-blue-600 dark:text-blue-400 font-bold">Pico de Expedição: Ter/Sáb</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Middle Row 2: 3 Additional Operational Widgets (Estoque por Família, Devoluções, Grade Horária da Frota) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
-            
-            {/* Chart 4: Níveis de Estoque por Família OPME */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <Boxes className="w-3.5 h-3.5 text-blue-600" />
-                  Níveis de Estoque por Família OPME
-                </h3>
-                <span className="text-[10px] font-bold text-slate-400">Saldos Físicos</span>
-              </div>
-
-              <div className="space-y-2.5 pt-1">
-                {[
-                  { familia: 'Cervical (Coluna)', reservado: 35, disponivel: 88, total: 150 },
-                  { familia: 'Joelho (Prótese/Artro)', reservado: 120, disponivel: 130, total: 160 },
-                  { familia: 'Quadril (Híbrida/Cem.)', reservado: 99, disponivel: 53, total: 160 },
-                  { familia: 'Parafusos Pediculares', reservado: 10, disponivel: 23, total: 110 },
-                  { familia: 'Instrumental Cirúrgico', reservado: 10, disponivel: 15, total: 59 },
-                ].map((item, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-bold">
-                      <span className="text-slate-800 dark:text-slate-200">{item.familia}</span>
-                      <span className="text-slate-500 font-mono">
-                        {item.disponivel} disp. / {item.total} total
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden flex">
-                      <div
-                        style={{ width: `${(item.reservado / item.total) * 100}%` }}
-                        className="bg-amber-500 h-full"
-                        title={`Reservado: ${item.reservado}`}
-                      ></div>
-                      <div
-                        style={{ width: `${(item.disponivel / item.total) * 100}%` }}
-                        className="bg-blue-600 h-full"
-                        title={`Disponível: ${item.disponivel}`}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-
-                <div className="flex items-center justify-between text-[9px] text-slate-400 pt-1">
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-600"></span> Disponível
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span> Reservado em Cirurgia
-                  </span>
-                </div>
-              </div>
-            </div>
-
             {/* Chart 5: Status das Devoluções de Kits */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
@@ -705,81 +776,6 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
               </div>
             </div>
 
-            {/* Widget 6: Disponibilidade de Veículos OPME & Grade Horária (Vehicle Heatmap Matrix) */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-blue-600" />
-                  Disponibilidade de Veículos OPME
-                </h3>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Grade Semanal</span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-[9px] border-collapse text-center">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-extrabold uppercase">
-                      <th className="p-1 text-left">Horário</th>
-                      <th className="p-1">Dom</th>
-                      <th className="p-1">Seg</th>
-                      <th className="p-1">Ter</th>
-                      <th className="p-1">Qua</th>
-                      <th className="p-1">Qui</th>
-                      <th className="p-1">Sex</th>
-                      <th className="p-1">Sáb</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-semibold">
-                    {[
-                      { slot: '00 - 02', status: ['disp', 'disp', 'disp', 'disp', 'disp', 'disp', 'disp'] },
-                      { slot: '03 - 04', status: ['disp', 'disp', 'transito', 'transito', 'disp', 'disp', 'transito'] },
-                      { slot: '05 - 06', status: ['disp', 'transito', 'transito', 'disp', 'disp', 'manutencao', 'transito'] },
-                      { slot: '07 - 08', status: ['disp', 'disp', 'veh1', 'disp', 'disp', 'disp', 'disp'] },
-                      { slot: '09 - 10', status: ['disp', 'disp', 'disp', 'disp', 'disp', 'disp', 'disp'] },
-                      { slot: '11 - 12', status: ['disp', 'disp', 'disp', 'disp', 'disp', 'disp', 'veh2'] },
-                      { slot: '13 - 14', status: ['disp', 'disp', 'disp', 'disp', 'disp', 'disp', 'disp'] },
-                      { slot: '15 - 16', status: ['disp', 'disp', 'disp', 'disp', 'disp', 'disp', 'disp'] },
-                      { slot: '17 - 18', status: ['disp', 'disp', 'disp', 'disp', 'disp', 'disp', 'disp'] },
-                      { slot: '19 - 20', status: ['disp', 'veh3', 'disp', 'disp', 'disp', 'disp', 'disp'] },
-                    ].map((row, rIdx) => (
-                      <tr key={rIdx}>
-                        <td className="p-1 text-left font-mono font-bold text-slate-500 whitespace-nowrap">{row.slot}</td>
-                        {row.status.map((st, cIdx) => {
-                          let bg = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300';
-                          let label = 'Disponível';
-
-                          if (st === 'transito') {
-                            bg = 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300';
-                            label = 'Em Trânsito';
-                          } else if (st === 'manutencao') {
-                            bg = 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300';
-                            label = 'Manutenção';
-                          } else if (st === 'veh1') {
-                            bg = 'bg-blue-100 text-blue-900 dark:bg-blue-950/90 dark:text-blue-200 font-extrabold';
-                            label = 'VISS/123 ID';
-                          } else if (st === 'veh2') {
-                            bg = 'bg-blue-100 text-blue-900 dark:bg-blue-950/90 dark:text-blue-200 font-extrabold';
-                            label = 'VIS51123 ID';
-                          } else if (st === 'veh3') {
-                            bg = 'bg-blue-100 text-blue-900 dark:bg-blue-950/90 dark:text-blue-200 font-extrabold';
-                            label = 'VV84-009 ID';
-                          }
-
-                          return (
-                            <td key={cIdx} className="p-0.5">
-                              <span className={`block py-0.5 px-1 rounded text-[8px] truncate ${bg}`}>
-                                {label}
-                              </span>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
           </div>
 
           {/* Bottom Row: Complete Operational OPME Surgical Table Cross-Data */}
@@ -788,10 +784,10 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
               <div>
                 <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-600" />
-                  Tabela Operacional Integrada - Mapa Cirúrgico e Logística OPME
+                  Tabela Operacional Integrada - Mapa Cirúrgico OPME
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Cruzamento em tempo real de pacientes, convênios, cirurgiões, hospitais, kits consignados e rastreamento de veículos.
+                  Cruzamento em tempo real de pacientes, convênios, cirurgiões, hospitais e materiais cirúrgicos.
                 </p>
               </div>
 
@@ -813,33 +809,44 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
               <table className="w-full text-left border-collapse text-[11px] min-w-[900px]">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
-                    <th className="p-2.5 pl-3">Kit ID / Cirurgia</th>
+                    <th className="p-2.5 pl-3">Nº IT / Cirurgia</th>
                     <th className="p-2.5">Data / Hora Cir.</th>
                     <th className="p-2.5">Hospital / Médico</th>
                     <th className="p-2.5">Paciente / Convênio</th>
+                    <th className="p-2.5">Vendedor</th>
                     <th className="p-2.5">Conteúdo OPME Principal</th>
-                    <th className="p-2.5">Status Logístico</th>
-                    <th className="p-2.5 text-right pr-3">Local Atual</th>
+                    <th className="p-2.5 text-right pr-3">Status Logístico</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredCirurgias.map((c) => {
-                    const badge = getStatusBadge(c.situacao);
+                    const badge = getStatusBadge(c.situacao || c.status || 'Agendada');
                     return (
                       <tr key={c.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="p-2.5 pl-3 font-mono">
-                          <span className="font-extrabold text-blue-600 dark:text-blue-400">{c.kitId}</span>
-                          <p className="text-[9px] text-slate-400 font-medium">Ref: {c.id}</p>
+                          <span className="font-extrabold text-blue-600 dark:text-blue-400">IT {c.numero_it || c.id}</span>
+                          <p className="text-[9px] text-slate-400 font-medium">Protocolo: {c.numero_protocolo || `PROT-${c.numero_it || c.id}`}</p>
                         </td>
 
                         <td className="p-2.5 font-mono text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap">
-                          {formatDate(c.data)}
-                          <p className="text-[9px] text-slate-400 font-normal">{c.horario}h</p>
+                          {c.situacao === 'Confirmada' || c.data_a_definir ? (
+                            <div>
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black">
+                                Data a Definir (Vendedor)
+                              </span>
+                              {c.data && <p className="text-[9px] text-slate-400 font-normal mt-0.5">{formatDate(c.data)} {c.horario}h</p>}
+                            </div>
+                          ) : (
+                            <>
+                              {formatDate(c.data)}
+                              <p className="text-[9px] text-slate-400 font-normal">{c.horario}h</p>
+                            </>
+                          )}
                         </td>
 
                         <td className="p-2.5">
                           <p className="font-bold text-slate-900 dark:text-white line-clamp-1">{c.hospital_nome}</p>
-                          <p className="text-[10px] text-slate-400 line-clamp-1">{c.medico_nome} ({c.vendedor_nome})</p>
+                          <p className="text-[10px] text-slate-400 line-clamp-1">{c.medico_nome}</p>
                         </td>
 
                         <td className="p-2.5">
@@ -849,20 +856,48 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
                           </span>
                         </td>
 
+                        <td className="p-2.5 whitespace-nowrap">
+                          <p className="font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{c.vendedor_nome || 'Não informado'}</p>
+                        </td>
+
                         <td className="p-2.5 max-w-[240px]">
                           <p className="font-medium text-slate-800 dark:text-slate-200 line-clamp-2">{c.conteudoOpme}</p>
                         </td>
 
-                        <td className="p-2.5">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${badge.bg} ${badge.text}`}>
-                            {c.statusLogistico}
-                          </span>
-                        </td>
-
-                        <td className="p-2.5 text-right pr-3 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1">
-                            <MapPin className="w-3 h-3 text-slate-400" />
-                            <span>{c.localAtual}</span>
+                        <td className="p-2.5 text-right pr-3">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {(c.situacao === 'Confirmada' || c.data_a_definir) && (
+                              <button
+                                onClick={() => {
+                                  setCirurgiaParaAgendar(c);
+                                  setDataAgendamento(c.data || new Date().toISOString().split('T')[0]);
+                                  setHorarioAgendamento(c.horario || '08:00');
+                                  setObsAgendamento('');
+                                }}
+                                className="px-2 py-1 text-[10px] font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-xs flex items-center gap-1 shrink-0"
+                                title="Vendedor: Informar data da cirurgia"
+                              >
+                                <Calendar className="w-3 h-3" />
+                                Informar Data
+                              </button>
+                            )}
+                            {c.situacao !== 'Finalizada' && c.status !== 'FINALIZADA' ? (
+                              <button
+                                onClick={() => handleFinalizarCirurgia(c)}
+                                className="px-2 py-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs flex items-center gap-1 shrink-0 transition-colors"
+                                title="Concluir cirurgia e mover para Finalizadas"
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                Finalizar
+                              </button>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300">
+                                FINALIZADA
+                              </span>
+                            )}
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${badge.bg} ${badge.text}`}>
+                              {c.statusLogistico}
+                            </span>
                           </div>
                         </td>
                       </tr>
@@ -934,6 +969,7 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
                 <option value="Confirmada">Confirmada</option>
                 <option value="Em Andamento">Em Andamento</option>
                 <option value="Realizada">Realizada</option>
+                <option value="Finalizada">Finalizada</option>
                 <option value="Faturada">Faturada</option>
                 <option value="Cancelada">Cancelada</option>
               </select>
@@ -946,7 +982,7 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
               <table className="w-full text-left border-collapse text-[11px] min-w-[760px]">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
-                    <th className="p-2.5 pl-3.5 w-[12%]">Cód. / Data</th>
+                    <th className="p-2.5 pl-3.5 w-[12%]">Nº IT / Data</th>
                     <th className="p-2.5 w-[18%]">Hospital</th>
                     <th className="p-2.5 w-[18%]">Médico / Especialidade</th>
                     <th className="p-2.5 w-[18%]">Paciente & Convênio</th>
@@ -957,15 +993,27 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-[11px]">
                   {filteredCirurgias.map((c) => {
-                    const badge = getStatusBadge(c.situacao);
+                    const currentSit = c.situacao || c.status || 'Agendada';
+                    const badge = getStatusBadge(currentSit);
                     return (
                       <tr key={c.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="p-2.5 pl-3.5 font-mono">
-                          <span className="font-extrabold text-slate-900 dark:text-white whitespace-nowrap">{c.id}</span>
+                          <span className="font-extrabold text-blue-600 dark:text-blue-400 whitespace-nowrap">IT {c.numero_it || c.id}</span>
                           <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5 whitespace-nowrap">
                             <Clock className="w-3 h-3 text-blue-500 shrink-0" />
-                            <span>{formatDate(c.data)} - {c.horario}h</span>
+                            {c.situacao === 'Confirmada' || c.data_a_definir ? (
+                              <span className="font-bold text-amber-700 dark:text-amber-400">
+                                Data a Definir (Vendedor)
+                              </span>
+                            ) : (
+                              <span>{formatDate(c.data)} - {c.horario}h</span>
+                            )}
                           </div>
+                          {c.data_definida_por && (
+                            <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">
+                              Data por: {c.data_definida_por}
+                            </p>
+                          )}
                         </td>
 
                         <td className="p-2.5 font-bold text-slate-800 dark:text-slate-200">
@@ -993,27 +1041,99 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
                         </td>
 
                         <td className="p-2.5">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold border whitespace-nowrap ${badge.bg} ${badge.text}`}>
-                            {badge.label}
-                          </span>
+                          <div className="space-y-1">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold border whitespace-nowrap ${badge.bg} ${badge.text}`}>
+                              {badge.label}
+                            </span>
+                            {(c.situacao === 'Confirmada' || c.data_a_definir) && (
+                              <div className="flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                                <AlertCircle className="w-2.5 h-2.5" />
+                                Aguardando Data
+                              </div>
+                            )}
+                          </div>
                         </td>
 
                         <td className="p-2.5 text-right pr-3.5">
-                          <select
-                            value={c.situacao}
-                            onChange={(e) => {
-                              updateCirurgia(c.id, { situacao: e.target.value as SituacaoCirurgia });
-                              logAuditEvent('UPDATE_CIRURGIA_SITUACAO', 'MapaCirurgico', c.id, { nova_situacao: e.target.value });
-                            }}
-                            className="px-2 py-1 text-[11px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-bold focus:outline-none max-w-full"
-                          >
-                            <option value="Agendada">Agendada</option>
-                            <option value="Confirmada">Confirmada</option>
-                            <option value="Em Andamento">Em Andamento</option>
-                            <option value="Realizada">Realizada</option>
-                            <option value="Faturada">Faturada</option>
-                            <option value="Cancelada">Cancelada</option>
-                          </select>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {(c.situacao === 'Confirmada' || c.data_a_definir) && (
+                              <button
+                                onClick={() => {
+                                  setCirurgiaParaAgendar(c);
+                                  setDataAgendamento(c.data || new Date().toISOString().split('T')[0]);
+                                  setHorarioAgendamento(c.horario || '08:00');
+                                  setObsAgendamento('');
+                                }}
+                                className="px-2 py-1 text-[10px] font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-xs flex items-center gap-1 shrink-0"
+                                title="Vendedor: Informar data da cirurgia"
+                              >
+                                <Calendar className="w-3 h-3" />
+                                Informar Data
+                              </button>
+                            )}
+
+                            {/* Botão Finalizar: Conclui e redireciona para a lista de Cirurgias Finalizadas */}
+                            {c.situacao !== 'Finalizada' && c.status !== 'FINALIZADA' ? (
+                              <button
+                                onClick={() => handleFinalizarCirurgia(c)}
+                                className="px-2 py-1 text-[10px] font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs flex items-center gap-1 shrink-0 transition-colors"
+                                title="Concluir cirurgia e mover para Cirurgias Finalizadas"
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                Finalizar
+                              </button>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 whitespace-nowrap">
+                                FINALIZADA
+                              </span>
+                            )}
+
+                            <select
+                              value={currentSit}
+                              onChange={(e) => {
+                                const newSit = e.target.value as SituacaoCirurgia;
+                                if (newSit === 'Finalizada') {
+                                  handleFinalizarCirurgia(c);
+                                  return;
+                                }
+                                const isNowConfirmada = newSit === 'Confirmada';
+                                updateCirurgia(c.id, {
+                                  situacao: newSit,
+                                  ...(isNowConfirmada ? { data_a_definir: !c.data || c.data_a_definir } : { data_a_definir: false })
+                                });
+                                logAuditEvent(
+                                  'UPDATE_CIRURGIA_SITUACAO',
+                                  'MapaCirurgico',
+                                  c.numero_it || c.id,
+                                  {
+                                    cirurgia_id: c.id,
+                                    numero_it: c.numero_it,
+                                    paciente: c.paciente,
+                                    hospital: c.hospital_nome,
+                                    vendedor: c.vendedor_nome,
+                                    situacao_anterior: currentSit,
+                                    nova_situacao: newSit,
+                                    modificado_por: user?.nome,
+                                    usuario_email: user?.email,
+                                    papel: role,
+                                    aguardando_data_vendedor: isNowConfirmada
+                                  },
+                                  'medium'
+                                );
+                              }}
+                              className="px-2 py-1 text-[11px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-bold focus:outline-none max-w-full"
+                            >
+                              <option value="Aguardando Autorização">Aguardando Autorização</option>
+                              <option value="Em Análise OPME">Em Análise OPME</option>
+                              <option value="Confirmada">Confirmada (OPME)</option>
+                              <option value="Agendada">Agendada</option>
+                              <option value="Em Andamento">Em Andamento</option>
+                              <option value="Realizada">Realizada</option>
+                              <option value="Finalizada">Finalizada</option>
+                              <option value="Faturada">Faturada</option>
+                              <option value="Cancelada">Cancelada</option>
+                            </select>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1026,40 +1146,209 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
         </div>
       )}
 
-      {/* ==================== TAB 4: GRADE HORÁRIA DA FROTA ==================== */}
-      {activeTab === 'grade_frota' && (
-        <div className="space-y-3.5">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-blue-600" />
-                  Escala de Frota & Motoristas Credenciados OPME
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Monitoramento de vans refrigeradas, vistorias fotográficas e rotas de entrega de consignado.
+      {/* ==================== TAB 3: CIRURGIAS FINALIZADAS ==================== */}
+      {activeTab === 'finalizadas' && (
+        <div className="space-y-3.5 animate-in fade-in duration-200">
+          
+          {/* Top Metrics Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 rounded-xl p-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                  Cirurgias Finalizadas
                 </p>
+                <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/60 rounded-lg text-emerald-600">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
               </div>
-              <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800">
-                100% Veículos Vistoriados
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+                {cirurgiasFinalizadas.length}
+              </p>
+              <p className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" />
+                Procedimentos 100% Concluídos
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Hospitais Atendidos
+                </p>
+                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/60 rounded-lg text-blue-600">
+                  <Building2 className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+                {new Set(cirurgiasFinalizadas.map(c => c.hospital_id)).size}
+              </p>
+              <p className="text-[10px] font-bold text-blue-600 mt-0.5">
+                Centros cirúrgicos com pós-operatório liberado
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Rastreabilidade & Logs
+                </p>
+                <div className="p-1.5 bg-purple-100 dark:bg-purple-900/60 rounded-lg text-purple-600">
+                  <FileText className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+                100%
+              </p>
+              <p className="text-[10px] font-bold text-purple-600 mt-0.5">
+                Registrado com usuário, data e protocolo
+              </p>
+            </div>
+          </div>
+
+          {/* Filters Bar for Finalizadas */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs flex flex-col md:flex-row gap-2.5 items-center justify-between">
+            <div className="relative w-full md:w-80">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar em finalizadas (paciente, médico, hospital, operador)..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none text-slate-800 dark:text-slate-200 font-medium"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <select
+                value={selectedHospital}
+                onChange={(e) => setSelectedHospital(e.target.value)}
+                className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-semibold focus:outline-none"
+              >
+                <option value="todos">Todos os Hospitais</option>
+                {hospitais.map((h) => (
+                  <option key={h.id} value={h.id}>{h.nome}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Finalized Surgeries Table */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden w-full max-w-full">
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-emerald-50/40 dark:bg-emerald-950/20">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                  Lista de Cirurgias Finalizadas ({filteredFinalizadas.length})
+                </h3>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
+                Status: FINALIZADA
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {veiculos.map((v) => (
-                <div key={v.id} className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-sm font-black text-slate-900 dark:text-white">{v.placa}</span>
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                      Disponível
-                    </span>
-                  </div>
-                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{v.modelo} ({v.ano})</p>
-                  <p className="text-[11px] text-slate-400">Condutor habitual: {v.responsavel_nome || 'Escala Rotativa'}</p>
-                </div>
-              ))}
-            </div>
+            {filteredFinalizadas.length === 0 ? (
+              <div className="p-8 text-center space-y-2">
+                <CheckCircle2 className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto" />
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                  Nenhuma cirurgia finalizada encontrada
+                </p>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Assim que uma cirurgia for concluída e você clicar no botão <strong className="text-emerald-600">"Finalizar"</strong> na Visão Geral ou na Agenda, ela aparecerá automaticamente nesta lista com o registro de conclusão e status FINALIZADA.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse text-[11px] min-w-[850px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
+                      <th className="p-2.5 pl-3.5">Nº IT / Cirurgia</th>
+                      <th className="p-2.5">Data Cirurgia</th>
+                      <th className="p-2.5">Hospital / Médico</th>
+                      <th className="p-2.5">Paciente / Convênio</th>
+                      <th className="p-2.5">Vendedor</th>
+                      <th className="p-2.5">Materiais Previstos / Utilizados</th>
+                      <th className="p-2.5">Conclusão / Responsável</th>
+                      <th className="p-2.5">Status</th>
+                      <th className="p-2.5 text-right pr-3.5">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-[11px]">
+                    {filteredFinalizadas.map((c) => {
+                      const badge = getStatusBadge('Finalizada');
+                      return (
+                        <tr key={c.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-2.5 pl-3.5 font-mono">
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">IT {c.numero_it || c.id}</span>
+                            <p className="text-[9px] text-slate-400 font-medium">Protocolo: {c.numero_protocolo || `PROT-${c.numero_it || c.id}`}</p>
+                          </td>
+
+                          <td className="p-2.5 font-mono text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap">
+                            {formatDate(c.data)}
+                            <p className="text-[9px] text-slate-400 font-normal">{c.horario}h</p>
+                          </td>
+
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900 dark:text-white line-clamp-1">{c.hospital_nome}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-1">{c.medico_nome}</p>
+                          </td>
+
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900 dark:text-white line-clamp-1">{c.paciente}</p>
+                            <span className="inline-block text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 max-w-full truncate">
+                              {c.convenio_nome}
+                            </span>
+                          </td>
+
+                          <td className="p-2.5 whitespace-nowrap">
+                            <p className="font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{c.vendedor_nome || 'Não informado'}</p>
+                          </td>
+
+                          <td className="p-2.5 max-w-[220px]">
+                            <p className="font-medium text-slate-700 dark:text-slate-300 line-clamp-2">
+                              {c.material_previsto || c.conteudoOpme || 'Material cirúrgico OPME'}
+                            </p>
+                          </td>
+
+                          <td className="p-2.5">
+                            <div className="space-y-0.5">
+                              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                {c.finalizada_por || 'Operador OPME'}
+                              </p>
+                              {c.finalizada_em && (
+                                <p className="text-[9px] text-slate-400 font-mono">
+                                  {new Date(c.finalizada_em).toLocaleDateString('pt-BR')} às {new Date(c.finalizada_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-2.5">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${badge.bg} ${badge.text}`}>
+                              <CheckCircle2 className="w-3 h-3" />
+                              FINALIZADA
+                            </span>
+                          </td>
+
+                          <td className="p-2.5 text-right pr-3.5">
+                            <button
+                              onClick={() => handleReabrirCirurgia(c)}
+                              className="px-2 py-1 text-[10px] font-bold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1 ml-auto"
+                              title="Reabrir cirurgia para edição ativa"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              Reabrir
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
+
         </div>
       )}
 
@@ -1080,6 +1369,19 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Número IT (Identificador de Transação OPME)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 559879 (se vazio, gerado automaticamente)"
+                    value={formData.numero_it}
+                    onChange={(e) => setFormData({ ...formData, numero_it: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none"
+                  />
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Data da Cirurgia</label>
                   <input
@@ -1129,6 +1431,20 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Vendedor / Comercial Responsável</label>
+                  <select
+                    value={formData.vendedor_id}
+                    onChange={(e) => setFormData({ ...formData, vendedor_id: e.target.value })}
+                    disabled={isVendedorScope}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none disabled:opacity-75"
+                  >
+                    {vendedores.map((v) => (
+                      <option key={v.id} value={v.id}>{v.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nome do Paciente</label>
                   <input
                     type="text"
@@ -1151,6 +1467,54 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
                       <option key={c.id} value={c.id}>{c.nome}</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Situação do Registro OPME</label>
+                  <select
+                    value={formData.situacao}
+                    onChange={(e) => {
+                      const newSit = e.target.value as SituacaoCirurgia;
+                      setFormData({
+                        ...formData,
+                        situacao: newSit,
+                        data_a_definir: newSit === 'Confirmada' ? true : formData.data_a_definir,
+                      });
+                    }}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none"
+                  >
+                    <option value="Confirmada">Confirmada (Aguardando Data do Vendedor)</option>
+                    <option value="Agendada">Agendada (Data já confirmada)</option>
+                    <option value="Aguardando Autorização">Aguardando Autorização</option>
+                    <option value="Em Análise OPME">Em Análise OPME</option>
+                  </select>
+                </div>
+
+                {/* Checkbox Data a Definir pelo Vendedor */}
+                <div className="sm:col-span-2 p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.data_a_definir}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          data_a_definir: e.target.checked,
+                          situacao: e.target.checked ? 'Confirmada' : formData.situacao,
+                        })
+                      }
+                      className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-amber-950 dark:text-amber-100 flex items-center gap-1.5">
+                        <CalendarCheck className="w-4 h-4 text-amber-600" />
+                        Cirurgia Confirmada — Data a ser informada pelo vendedor
+                      </span>
+                      <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                        Ao marcar esta opção, o status é registrado como <strong>Confirmada</strong>. Assim que o vendedor responsável acessar o sistema, ele verá a cirurgia autorizada e preencherá a data e o horário definitivos.
+                      </p>
+                    </div>
+                  </label>
                 </div>
 
                 <div className="space-y-1 sm:col-span-2">
@@ -1178,13 +1542,138 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
                   type="submit"
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all"
                 >
-                  Confirmar Agendamento OPME
+                  Confirmar Cadastro OPME
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* ==================== MODAL DEFINIR DATA DA CIRURGIA (VENDEDOR) ==================== */}
+      {cirurgiaParaAgendar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-amber-500 text-white rounded-xl shadow-xs">
+                  <CalendarCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Definir Data da Cirurgia Confirmada
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Protocolo IT {cirurgiaParaAgendar.numero_it || cirurgiaParaAgendar.id} • Vendedor: {cirurgiaParaAgendar.vendedor_nome}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCirurgiaParaAgendar(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Resumo da cirurgia confirmada pela OPME */}
+            <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl p-3.5 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Paciente:</span>
+                <span className="font-extrabold text-slate-900 dark:text-white">{cirurgiaParaAgendar.paciente}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Hospital:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{cirurgiaParaAgendar.hospital_nome}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Médico Cirurgião:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{cirurgiaParaAgendar.medico_nome}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Convênio:</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">{cirurgiaParaAgendar.convenio_nome}</span>
+              </div>
+              {cirurgiaParaAgendar.material_previsto && (
+                <div className="border-t border-amber-200/60 dark:border-amber-800/40 pt-1.5 mt-1.5">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mb-0.5">Materiais Previstos:</span>
+                  <span className="font-medium text-amber-900 dark:text-amber-200 line-clamp-2 text-[11px]">
+                    {cirurgiaParaAgendar.material_previsto}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl p-3 text-[11px] text-blue-900 dark:text-blue-200 flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <p>
+                O setor de OPME já cadastrou e confirmou esta cirurgia. Ao salvar a data e o horário, o status da cirurgia mudará automaticamente para <strong>Agendada</strong> e ficará disponível para a logística de entrega.
+              </p>
+            </div>
+
+            <form onSubmit={handleSalvarDataCirurgia} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Data da Cirurgia <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={dataAgendamento}
+                    onChange={(e) => setDataAgendamento(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Horário Previsto <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={horarioAgendamento}
+                    onChange={(e) => setHorarioAgendamento(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Observações do Vendedor / Agendamento (Opcional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Ex: Confirmado com o Dr. Médico para início na sala 03 às 08h..."
+                  value={obsAgendamento}
+                  onChange={(e) => setObsAgendamento(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setCirurgiaParaAgendar(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Salvar e Agendar Cirurgia
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
 
     </div>
   );

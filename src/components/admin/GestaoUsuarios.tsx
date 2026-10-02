@@ -197,7 +197,7 @@ export const GestaoUsuarios: React.FC = () => {
       email: '',
       cargo: '',
       password: 'DefaultPass123!',
-      role: 'comercial',
+      role: 'vendedor',
       status: 'Ativo',
     });
     setIsCreateModalOpen(false);

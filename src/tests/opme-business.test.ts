@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TipoMovimentoEstoque, ProtocoloItem } from '../types';
+import type { TipoMovimentacao, ProtocoloItem } from '../types';
 
 describe('Regras de Negócio de Estoque e Validades ANVISA (RDC 751/2022)', () => {
   const calculateDaysUntilExpiration = (validadeDateStr: string, referenceDate: Date = new Date()) => {
@@ -32,59 +32,67 @@ describe('Regras de Negócio de Estoque e Validades ANVISA (RDC 751/2022)', () =
     expect(getLoteStatusANVISA(validade, ref)).toBe('BLOQUEADO_VENCIDO');
   });
 
-  it('calcula o novo saldo de estoque baseado no tipo de movimentação física', () => {
-    const aplicarMovimento = (saldoAtual: number, tipo: TipoMovimentoEstoque, qtd: number) => {
-      const isEntrada = tipo === 'entrada' || tipo === 'devolucao';
+  it('calcula o novo saldo de estoque baseado no tipo de movimentação operacional', () => {
+    /**
+     * V2.0: TipoMovimentacao usa ENTRADA/RETORNO como incremento,
+     * demais tipos (SEPARACAO, ENTREGA, DESCARTE) como decremento.
+     */
+    const aplicarMovimento = (saldoAtual: number, tipo: TipoMovimentacao, qtd: number) => {
+      const isEntrada = tipo === 'ENTRADA' || tipo === 'RETORNO';
       const fator = isEntrada ? 1 : -1;
       return Math.max(0, saldoAtual + qtd * fator);
     };
 
-    // Entrada de NF de compra: +10 UN
-    expect(aplicarMovimento(18, 'entrada', 10)).toBe(28);
+    // Entrada de recebimento: +10 UN
+    expect(aplicarMovimento(18, 'ENTRADA', 10)).toBe(28);
 
-    // Saída para cirurgia no hospital: -2 UN
-    expect(aplicarMovimento(28, 'saida', 2)).toBe(26);
+    // Separação para cirurgia: -2 UN
+    expect(aplicarMovimento(28, 'SEPARACAO', 2)).toBe(26);
 
-    // Devolução de caixa consignada não consumida: +2 UN
-    expect(aplicarMovimento(26, 'devolucao', 2)).toBe(28);
+    // Retorno de material não utilizado: +2 UN
+    expect(aplicarMovimento(26, 'RETORNO', 2)).toBe(28);
 
-    // Saída maior que saldo não permite estoque negativo
-    expect(aplicarMovimento(5, 'saida', 10)).toBe(0);
+    // Operação maior que saldo não permite estoque negativo
+    expect(aplicarMovimento(5, 'ENTREGA', 10)).toBe(0);
   });
 });
 
-describe('Regras de Negócio de Vendas, Comissões e Faturamento OPME', () => {
-  it('calcula a comissão do representante baseado no consumo real e percentual contratado', () => {
-    const calcularComissao = (valorConsumido: number, comissaoPct: number) => {
-      return (valorConsumido * comissaoPct) / 100;
-    };
-
-    // Pedido consumido R$ 48.500,00 com taxa de 6%
-    const comissao = calcularComissao(48500.0, 6.0);
-    expect(comissao).toBe(2910.0);
-  });
-
-  it('calcula o valor faturado separando consumo efetivo de itens devolvidos', () => {
-    const totalItensEnviados = 60000.0;
-    const itensConsumidos = 45000.0;
-    const itensDevolvidos = totalItensEnviados - itensConsumidos;
-
-    expect(itensDevolvidos).toBe(15000.0);
-
-    const custoConsumo = 18000.0;
-    const margemBruta = ((itensConsumidos - custoConsumo) / itensConsumidos) * 100;
-
-    expect(margemBruta).toBe(60.0);
-  });
-
-  it('totaliza cotações cirúrgicas e valida somatória de itens OPME', () => {
+describe('Regras de Negócio Operacionais de Protocolo OPME V2.0', () => {
+  it('totaliza itens cirúrgicos por quantidade sem envolver valores financeiros', () => {
+    // V2.0: ProtocoloItem não tem valor_unitario nem valor_total
     const itens: Omit<ProtocoloItem, 'id' | 'protocolo_id'>[] = [
-      { produto_codigo: 'OPME-001', descricao: 'Gaiola PEEK', quantidade: 2, valor_unitario: 8500.0, valor_total: 17000.0 },
-      { produto_codigo: 'OPME-002', descricao: 'Placa Titânio', quantidade: 1, valor_unitario: 14500.0, valor_total: 14500.0 },
-      { produto_codigo: 'OPME-003', descricao: 'Parafuso Titânio', quantidade: 4, valor_unitario: 4250.0, valor_total: 17000.0 },
+      { descricao_produto: 'Gaiola PEEK', quantidade: 2, produto_codigo: 'OPME-001' },
+      { descricao_produto: 'Placa Titânio', quantidade: 1, produto_codigo: 'OPME-002' },
+      { descricao_produto: 'Parafuso Titânio', quantidade: 4, produto_codigo: 'OPME-003' },
     ];
 
-    const totalCalculado = itens.reduce((acc, it) => acc + it.quantidade * it.valor_unitario, 0);
-    expect(totalCalculado).toBe(48500.0);
+    const totalItens = itens.reduce((acc, it) => acc + it.quantidade, 0);
+    expect(totalItens).toBe(7);
+  });
+
+  it('valida distribuição de indicações de protocolo (PRIMEIRA, SEGUNDA, TERCEIRA)', () => {
+    const itens: Omit<ProtocoloItem, 'id' | 'protocolo_id'>[] = [
+      { descricao_produto: 'Gaiola PEEK', quantidade: 1, indicacao: 'PRIMEIRA' },
+      { descricao_produto: 'Placa Titânio', quantidade: 1, indicacao: 'SEGUNDA' },
+      { descricao_produto: 'Parafuso Titânio', quantidade: 4, indicacao: 'PRIMEIRA' },
+    ];
+
+    const primeiras = itens.filter((it) => it.indicacao === 'PRIMEIRA');
+    expect(primeiras.length).toBe(2);
+
+    const segundas = itens.filter((it) => it.indicacao === 'SEGUNDA');
+    expect(segundas.length).toBe(1);
+  });
+
+  it('valida que nenhum item do protocolo V2.0 carrega campos financeiros proibidos', () => {
+    const item: Omit<ProtocoloItem, 'id' | 'protocolo_id'> = {
+      descricao_produto: 'Gaiola PEEK',
+      quantidade: 2,
+    };
+
+    // Assertivas de conformidade V2.0: campos financeiros inexistentes na interface
+    expect((item as any).valor_unitario).toBeUndefined();
+    expect((item as any).valor_total).toBeUndefined();
+    expect((item as any).preco).toBeUndefined();
   });
 });

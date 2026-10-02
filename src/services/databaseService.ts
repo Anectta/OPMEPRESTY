@@ -1,18 +1,28 @@
 import { supabase } from '../lib/supabase/client';
-import {
+import type {
   Hospital,
   Medico,
   Convenio,
   Vendedor,
-  Cirurgia,
-  Protocolo,
+  Procedimento,
+  Paciente,
   Produto,
-  ProdutoLote,
-  MovimentoEstoque,
-  Venda,
-  Veiculo,
-  Condutor,
-  ChecklistFrota,
+  Estoque,
+  ProtocoloOPME,
+  ProtocoloItem,
+  Autorizacao,
+  Cirurgia,
+  Reserva,
+  Equipamento,
+  OrdemServico,
+  Rota,
+  OperationalEvent,
+  Notification,
+  StatusProtocolo,
+  StatusCirurgia,
+  StatusEquipamento,
+  StatusOS,
+  StatusAutorizacao,
 } from '../types';
 
 // =====================================================================
@@ -35,9 +45,14 @@ export const hospitaisService = {
       .insert({
         nome: h.nome,
         cnpj: h.cnpj,
+        endereco: h.endereco,
+        bairro: h.bairro,
         cidade: h.cidade,
         estado: h.estado,
-        contato: h.contato,
+        cep: h.cep,
+        telefone: h.telefone,
+        email: h.email,
+        contato_principal: h.contato_principal,
         ativo: h.ativo ?? true,
       })
       .select()
@@ -135,6 +150,7 @@ export const conveniosService = {
       .from('convenios')
       .insert({
         nome: c.nome,
+        registro: c.registro,
         ans_codigo: c.ans_codigo,
         ativo: c.ativo ?? true,
       })
@@ -181,9 +197,10 @@ export const vendedoresService = {
     const { data, error } = await supabase
       .from('vendedores')
       .insert({
+        user_id: v.user_id,
         nome: v.nome,
         email: v.email,
-        comissao_padrao_pct: v.comissao_padrao_pct,
+        telefone: v.telefone,
         ativo: v.ativo ?? true,
       })
       .select()
@@ -212,135 +229,117 @@ export const vendedoresService = {
 };
 
 // =====================================================================
-// CIRURGIAS SERVICE
+// PROCEDIMENTOS SERVICE
 // =====================================================================
-export const cirurgiasService = {
-  async getAll(): Promise<Cirurgia[]> {
+export const procedimentosService = {
+  async getAll(): Promise<Procedimento[]> {
     const { data, error } = await supabase
-      .from('cirurgias')
+      .from('procedimentos')
       .select('*')
-      .order('data', { ascending: false });
+      .order('descricao', { ascending: true });
 
     if (error) throw error;
-    return (data as Cirurgia[]) || [];
+    return (data as Procedimento[]) || [];
   },
 
-  async create(c: Omit<Cirurgia, 'id' | 'created_at'>): Promise<Cirurgia> {
+  async create(p: Omit<Procedimento, 'id'>): Promise<Procedimento> {
     const { data, error } = await supabase
-      .from('cirurgias')
+      .from('procedimentos')
       .insert({
-        data: c.data,
-        horario: c.horario,
-        hospital_id: c.hospital_id || null,
-        hospital_nome: c.hospital_nome,
-        medico_id: c.medico_id || null,
-        medico_nome: c.medico_nome,
-        paciente: c.paciente,
-        paciente_cpf: c.paciente_cpf,
-        convenio_id: c.convenio_id || null,
-        convenio_nome: c.convenio_nome,
-        vendedor_id: c.vendedor_id || null,
-        vendedor_nome: c.vendedor_nome,
-        situacao: c.situacao || 'Agendada',
-        equipamento: c.equipamento,
-        acessorio: c.acessorio,
-        ld_ct: c.ld_ct,
-        material_previsto: c.material_previsto,
-        tecnico_nome: c.tecnico_nome,
-        observacao: c.observacao,
-        empresa_id: c.empresa_id || null,
+        codigo: p.codigo,
+        descricao: p.descricao,
+        especialidade: p.especialidade,
+        ativo: p.ativo ?? true,
       })
       .select()
       .single();
 
     if (error) throw error;
-    return data as Cirurgia;
+    return data as Procedimento;
   },
 
-  async update(id: string, updates: Partial<Cirurgia>): Promise<Cirurgia> {
+  async update(id: string, updates: Partial<Procedimento>): Promise<Procedimento> {
     const { data, error } = await supabase
-      .from('cirurgias')
+      .from('procedimentos')
       .update(updates)
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Cirurgia;
+    return data as Procedimento;
   },
 
   async delete(id: string): Promise<void> {
-    const { error } = await supabase.from('cirurgias').delete().eq('id', id);
+    const { error } = await supabase.from('procedimentos').delete().eq('id', id);
     if (error) throw error;
   },
 };
 
 // =====================================================================
-// PROTOCOLOS & COTAÇÕES SERVICE
+// PACIENTES SERVICE
 // =====================================================================
-export const protocolosService = {
-  async getAll(): Promise<Protocolo[]> {
-    const { data: protocolosData, error } = await supabase
-      .from('protocolos')
-      .select('*, itens:protocolo_itens(*)')
-      .order('data', { ascending: false });
+export const pacientesService = {
+  async getAll(): Promise<Paciente[]> {
+    const { data, error } = await supabase
+      .from('pacientes')
+      .select('*')
+      .order('nome', { ascending: true });
 
     if (error) throw error;
-    return (protocolosData as Protocolo[]) || [];
+    return (data as Paciente[]) || [];
   },
 
-  async create(p: Omit<Protocolo, 'id' | 'numero' | 'created_at'>): Promise<Protocolo> {
-    const numero = `PROT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-
-    const { data: prot, error: protError } = await supabase
-      .from('protocolos')
+  async create(p: Omit<Paciente, 'id'>): Promise<Paciente> {
+    const { data, error } = await supabase
+      .from('pacientes')
       .insert({
-        numero,
-        data: p.data || new Date().toISOString().split('T')[0],
-        medico_nome: p.medico_nome,
-        crm: p.crm,
-        paciente: p.paciente,
-        hospital_nome: p.hospital_nome,
-        convenio_nome: p.convenio_nome,
-        procedimento: p.procedimento,
-        data_cirurgia: p.data_cirurgia,
-        status: p.status || 'Rascunho',
-        vendedor_nome: p.vendedor_nome,
-        valor_total: p.valor_total || 0,
-        observacao: p.observacao,
+        nome: p.nome,
       })
       .select()
       .single();
 
-    if (protError) throw protError;
+    if (error) throw error;
+    return data as Paciente;
+  },
 
-    // Se houver itens vinculados
-    if (p.itens && p.itens.length > 0) {
-      const itensInsert = p.itens.map((it) => ({
-        protocolo_id: prot.id,
-        produto_codigo: it.produto_codigo,
-        descricao: it.descricao,
-        quantidade: it.quantidade,
-        valor_unitario: it.valor_unitario,
-        anvisa: it.anvisa,
-      }));
+  /** Busca por nome parcial (case-insensitive) */
+  async search(nome: string): Promise<Paciente[]> {
+    const { data, error } = await supabase
+      .from('pacientes')
+      .select('*')
+      .ilike('nome', `%${nome}%`)
+      .order('nome', { ascending: true })
+      .limit(20);
 
-      const { data: itensCriados, error: itensError } = await supabase
-        .from('protocolo_itens')
-        .insert(itensInsert)
-        .select();
+    if (error) throw error;
+    return (data as Paciente[]) || [];
+  },
 
-      if (!itensError && itensCriados) {
-        prot.itens = itensCriados;
-      }
-    }
+  async update(id: string, updates: Partial<Paciente>): Promise<Paciente> {
+    const { data, error } = await supabase
+      .from('pacientes')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
 
-    return prot as Protocolo;
+    if (error) throw error;
+    return data as Paciente;
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('pacientes')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   },
 };
 
 // =====================================================================
-// ESTOQUE & PRODUTOS SERVICE
+// PRODUTOS SERVICE (SEM campos financeiros)
 // =====================================================================
 export const produtosService = {
   async getAll(): Promise<Produto[]> {
@@ -359,16 +358,14 @@ export const produtosService = {
       .insert({
         codigo: p.codigo,
         descricao: p.descricao,
-        fabricante: p.fabricante,
-        anvisa: p.anvisa,
-        grupo: p.grupo,
-        subgrupo: p.subgrupo,
+        categoria_id: p.categoria_id,
+        fabricante_id: p.fabricante_id,
+        unidade_id: p.unidade_id,
         unidade: p.unidade || 'UN',
-        valor_custo: p.valor_custo,
-        valor_venda: p.valor_venda,
+        anvisa: p.anvisa,
+        controla_lote: p.controla_lote ?? false,
+        controla_validade: p.controla_validade ?? false,
         controla_serie: p.controla_serie ?? false,
-        is_kit: p.is_kit ?? false,
-        saldo_total: p.saldo_total ?? 0,
         ativo: p.ativo ?? true,
       })
       .select()
@@ -389,231 +386,760 @@ export const produtosService = {
     if (error) throw error;
     return data as Produto;
   },
+
+  async getByCode(codigo: string): Promise<Produto | null> {
+    const { data, error } = await supabase
+      .from('produtos')
+      .select('*')
+      .eq('codigo', codigo)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data as Produto | null;
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase.from('produtos').delete().eq('id', id);
+    if (error) throw error;
+  },
 };
 
 // =====================================================================
-// ESTOQUE: LOTES & MOVIMENTAÇÕES SERVICE
+// ESTOQUES SERVICE
 // =====================================================================
-export const estoqueService = {
-  async getMovimentos(): Promise<MovimentoEstoque[]> {
+export const estoquesService = {
+  async getByProduto(produto_id: string): Promise<Estoque[]> {
     const { data, error } = await supabase
-      .from('estoque_movimentos')
+      .from('estoques')
       .select('*')
-      .order('created_at', { ascending: false });
+      .eq('produto_id', produto_id)
+      .order('validade', { ascending: true });
 
     if (error) throw error;
-    return (data as MovimentoEstoque[]) || [];
+    return (data as Estoque[]) || [];
   },
 
-  async createMovimento(m: Omit<MovimentoEstoque, 'id' | 'created_at'>): Promise<MovimentoEstoque> {
+  /** Retorna apenas registros com saldo disponível > 0 */
+  async getBySaldo(): Promise<Estoque[]> {
     const { data, error } = await supabase
-      .from('estoque_movimentos')
+      .from('estoques')
+      .select('*')
+      .gt('quantidade_disponivel', 0)
+      .order('validade', { ascending: true });
+
+    if (error) throw error;
+    return (data as Estoque[]) || [];
+  },
+
+  async create(e: Omit<Estoque, 'id'>): Promise<Estoque> {
+    const { data, error } = await supabase
+      .from('estoques')
       .insert({
-        produto_id: m.produto_id,
-        produto_codigo: m.produto_codigo,
-        produto_descricao: m.produto_descricao,
-        lote: m.lote,
-        numero_serie: m.numero_serie,
-        tipo: m.tipo,
-        quantidade: m.quantidade,
-        origem: m.origem,
-        destino: m.destino,
-        hospital_nome: m.hospital_nome,
-        medico_nome: m.medico_nome,
-        paciente_nome: m.paciente_nome,
-        protocolo_numero: m.protocolo_numero,
-        user_email: m.user_email || 'sistema@prestymedick.com.br',
+        produto_id: e.produto_id,
+        localizacao_id: e.localizacao_id,
+        lote: e.lote,
+        numero_serie: e.numero_serie,
+        validade: e.validade,
+        fabricacao: e.fabricacao,
+        quantidade_disponivel: e.quantidade_disponivel ?? 0,
+        quantidade_reservada: e.quantidade_reservada ?? 0,
       })
       .select()
       .single();
 
     if (error) throw error;
-
-    // Atualiza o saldo do produto correspondente
-    if (m.produto_id) {
-      const isEntrada = m.tipo === 'entrada' || m.tipo === 'devolucao';
-      const fator = isEntrada ? 1 : -1;
-      const { data: prod } = await supabase
-        .from('produtos')
-        .select('saldo_total')
-        .eq('id', m.produto_id)
-        .single();
-
-      if (prod) {
-        const novoSaldo = Math.max(0, (prod.saldo_total || 0) + (m.quantidade * fator));
-        await supabase
-          .from('produtos')
-          .update({ saldo_total: novoSaldo })
-          .eq('id', m.produto_id);
-      }
-    }
-
-    return data as MovimentoEstoque;
-  },
-
-  async getLotes(): Promise<ProdutoLote[]> {
-    const { data, error } = await supabase
-      .from('produto_lotes')
-      .select('*')
-      .order('validade', { ascending: true });
-
-    if (error) throw error;
-    return (data as ProdutoLote[]) || [];
-  },
-
-  async createLote(l: Omit<ProdutoLote, 'id'>): Promise<ProdutoLote> {
-    const { data, error } = await supabase
-      .from('produto_lotes')
-      .insert(l)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as ProdutoLote;
+    return data as Estoque;
   },
 };
 
 // =====================================================================
-// VENDAS SERVICE
+// PROTOCOLOS SERVICE
 // =====================================================================
-export const vendasService = {
-  async getAll(): Promise<Venda[]> {
+export const protocolosService = {
+  async getAll(): Promise<ProtocoloOPME[]> {
     const { data, error } = await supabase
-      .from('vendas')
+      .from('protocolos')
+      .select('*, itens:protocolo_itens(*)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data as ProtocoloOPME[]) || [];
+  },
+
+  async getById(id: string): Promise<ProtocoloOPME | null> {
+    const { data, error } = await supabase
+      .from('protocolos')
+      .select('*, itens:protocolo_itens(*), autorizacao:autorizacoes(*)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data as ProtocoloOPME | null;
+  },
+
+  async create(p: Omit<ProtocoloOPME, 'id' | 'created_at'>): Promise<ProtocoloOPME> {
+    const { data: prot, error: protError } = await supabase
+      .from('protocolos')
+      .insert({
+        numero_it: p.numero_it,
+        numero_protocolo: p.numero_protocolo,
+        hospital_id: p.hospital_id,
+        hospital_nome: p.hospital_nome,
+        medico_id: p.medico_id,
+        medico_nome: p.medico_nome,
+        paciente_id: p.paciente_id,
+        paciente: p.paciente,
+        procedimento_id: p.procedimento_id,
+        procedimento_nome: p.procedimento_nome,
+        convenio_id: p.convenio_id,
+        convenio_nome: p.convenio_nome,
+        vendedor_id: p.vendedor_id,
+        vendedor_nome: p.vendedor_nome,
+        status: p.status || 'RASCUNHO',
+        data_protocolo: p.data_protocolo,
+        data_cirurgia: p.data_cirurgia,
+        observacoes: p.observacoes,
+        documentos: p.documentos,
+        created_by: p.created_by,
+      })
+      .select()
+      .single();
+
+    if (protError) throw protError;
+
+    if (p.itens && p.itens.length > 0) {
+      const itensInsert = p.itens.map((it) => ({
+        protocolo_id: prot.id,
+        numero_it: it.numero_it,
+        produto_id: it.produto_id,
+        produto_codigo: it.produto_codigo,
+        descricao_produto: it.descricao_produto,
+        quantidade: it.quantidade,
+        indicacao: it.indicacao,
+        observacoes: it.observacoes,
+      }));
+
+      const { error: itensError } = await supabase
+        .from('protocolo_itens')
+        .insert(itensInsert);
+
+      if (itensError) throw itensError;
+    }
+
+    return prot as ProtocoloOPME;
+  },
+
+  async update(id: string, updates: Partial<ProtocoloOPME>): Promise<ProtocoloOPME> {
+    const { data, error } = await supabase
+      .from('protocolos')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as ProtocoloOPME;
+  },
+
+  async updateStatus(id: string, status: StatusProtocolo): Promise<ProtocoloOPME> {
+    const { data, error } = await supabase
+      .from('protocolos')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as ProtocoloOPME;
+  },
+};
+
+// =====================================================================
+// AUTORIZAÇÕES SERVICE
+// =====================================================================
+export const autorizacoesService = {
+  async getAll(): Promise<Autorizacao[]> {
+    const { data, error } = await supabase
+      .from('autorizacoes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data as Autorizacao[]) || [];
+  },
+
+  async getByProtocolo(protocolo_id: string): Promise<Autorizacao | null> {
+    const { data, error } = await supabase
+      .from('autorizacoes')
+      .select('*')
+      .eq('protocolo_id', protocolo_id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data as Autorizacao | null;
+  },
+
+  async create(a: Omit<Autorizacao, 'id' | 'created_at'>): Promise<Autorizacao> {
+    const { data, error } = await supabase
+      .from('autorizacoes')
+      .insert({
+        protocolo_id: a.protocolo_id,
+        numero_autorizacao: a.numero_autorizacao,
+        status: a.status || 'PENDENTE',
+        data_autorizacao: a.data_autorizacao,
+        data_validade: a.data_validade,
+        responsavel_autorizacao: a.responsavel_autorizacao,
+        observacoes: a.observacoes,
+        responsavel_id: a.responsavel_id,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Autorizacao;
+  },
+
+  async update(id: string, updates: Partial<Autorizacao>): Promise<Autorizacao> {
+    const { data, error } = await supabase
+      .from('autorizacoes')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Autorizacao;
+  },
+
+  /** Autoriza e atualiza o status do protocolo para AUTORIZADO */
+  async autorizar(
+    id: string,
+    numero_autorizacao: string,
+    data_validade?: string,
+    responsavel_id?: string,
+  ): Promise<Autorizacao> {
+    const { data, error } = await supabase
+      .from('autorizacoes')
+      .update({
+        status: 'AUTORIZADA' as StatusAutorizacao,
+        numero_autorizacao,
+        data_autorizacao: new Date().toISOString().split('T')[0],
+        data_validade,
+        responsavel_id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Autorizacao;
+  },
+
+  /** Nega a autorização */
+  async negar(id: string, observacoes: string, responsavel_id?: string): Promise<Autorizacao> {
+    const { data, error } = await supabase
+      .from('autorizacoes')
+      .update({
+        status: 'NAO_AUTORIZADA' as StatusAutorizacao,
+        observacoes,
+        responsavel_id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Autorizacao;
+  },
+};
+
+// =====================================================================
+// CIRURGIAS SERVICE — MAPA CIRÚRGICO
+// =====================================================================
+export const cirurgiasService = {
+  async getAll(): Promise<Cirurgia[]> {
+    const { data, error } = await supabase
+      .from('cirurgias')
       .select('*')
       .order('data', { ascending: false });
 
     if (error) throw error;
-    return (data as Venda[]) || [];
+    return (data as Cirurgia[]) || [];
   },
 
-  async create(v: Omit<Venda, 'id' | 'created_at'>): Promise<Venda> {
+  async getById(id: string): Promise<Cirurgia | null> {
     const { data, error } = await supabase
-      .from('vendas')
-      .insert(v)
+      .from('cirurgias')
+      .select('*, materiais:cirurgia_materiais(*), equipamentos:cirurgia_equipamentos(*)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data as Cirurgia | null;
+  },
+
+  async create(c: Omit<Cirurgia, 'id' | 'created_at'>): Promise<Cirurgia> {
+    const { data, error } = await supabase
+      .from('cirurgias')
+      .insert({
+        numero_it: c.numero_it,
+        protocolo_id: c.protocolo_id,
+        autorizacao_id: c.autorizacao_id,
+        status: c.status || 'AGUARDANDO_AUTORIZACAO',
+        data: c.data,
+        horario: c.horario,
+        hospital_id: c.hospital_id,
+        hospital_nome: c.hospital_nome,
+        centro_cirurgico_id: c.centro_cirurgico_id,
+        sala: c.sala,
+        medico_id: c.medico_id,
+        medico_nome: c.medico_nome,
+        paciente: c.paciente,
+        procedimento_id: c.procedimento_id,
+        procedimento_nome: c.procedimento_nome,
+        convenio_id: c.convenio_id,
+        convenio_nome: c.convenio_nome,
+        vendedor_id: c.vendedor_id,
+        vendedor_nome: c.vendedor_nome,
+        observacoes: c.observacoes,
+        created_by: c.created_by,
+      })
       .select()
       .single();
 
     if (error) throw error;
-    return data as Venda;
+    return data as Cirurgia;
   },
 
-  async update(id: string, updates: Partial<Venda>): Promise<Venda> {
+  async update(id: string, updates: Partial<Cirurgia>): Promise<Cirurgia> {
     const { data, error } = await supabase
-      .from('vendas')
-      .update(updates)
+      .from('cirurgias')
+      .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Venda;
+    return data as Cirurgia;
   },
 
-  async delete(id: string): Promise<void> {
-    const { error } = await supabase.from('vendas').delete().eq('id', id);
+  async updateStatus(id: string, status: StatusCirurgia): Promise<Cirurgia> {
+    const { data, error } = await supabase
+      .from('cirurgias')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
     if (error) throw error;
+    return data as Cirurgia;
+  },
+
+  /** Busca cirurgias por data específica (YYYY-MM-DD) */
+  async getByData(data: string): Promise<Cirurgia[]> {
+    const { data: rows, error } = await supabase
+      .from('cirurgias')
+      .select('*')
+      .eq('data', data)
+      .order('horario', { ascending: true });
+
+    if (error) throw error;
+    return (rows as Cirurgia[]) || [];
+  },
+
+  /** Retorna as cirurgias do dia atual */
+  async getToday(): Promise<Cirurgia[]> {
+    const today = new Date().toISOString().split('T')[0];
+    return cirurgiasService.getByData(today);
   },
 };
 
 // =====================================================================
-// FROTA & VEÍCULOS SERVICE
+// RESERVAS SERVICE
 // =====================================================================
-export const frotaService = {
-  async getVeiculos(): Promise<Veiculo[]> {
+export const reservasService = {
+  async getAll(): Promise<Reserva[]> {
     const { data, error } = await supabase
-      .from('veiculos')
-      .select('*')
-      .order('placa', { ascending: true });
+      .from('reservas')
+      .select('*, itens:reserva_itens(*)')
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data as Veiculo[]) || [];
+    return (data as Reserva[]) || [];
   },
 
-  async createVeiculo(v: Omit<Veiculo, 'id'>): Promise<Veiculo> {
+  async getByCirurgia(cirurgia_id: string): Promise<Reserva[]> {
     const { data, error } = await supabase
-      .from('veiculos')
-      .insert(v)
+      .from('reservas')
+      .select('*, itens:reserva_itens(*)')
+      .eq('cirurgia_id', cirurgia_id);
+
+    if (error) throw error;
+    return (data as Reserva[]) || [];
+  },
+
+  async create(r: Omit<Reserva, 'id' | 'created_at'>): Promise<Reserva> {
+    const { data: reserva, error: reservaError } = await supabase
+      .from('reservas')
+      .insert({
+        cirurgia_id: r.cirurgia_id,
+        protocolo_id: r.protocolo_id,
+        status: r.status || 'PENDENTE',
+        data_reserva: r.data_reserva,
+        data_necessidade: r.data_necessidade,
+        observacoes: r.observacoes,
+        created_by: r.created_by,
+      })
       .select()
       .single();
 
-    if (error) throw error;
-    return data as Veiculo;
+    if (reservaError) throw reservaError;
+
+    if (r.itens && r.itens.length > 0) {
+      const itensInsert = r.itens.map((it) => ({
+        reserva_id: reserva.id,
+        produto_id: it.produto_id,
+        estoque_id: it.estoque_id,
+        quantidade_solicitada: it.quantidade_solicitada,
+        quantidade_reservada: it.quantidade_reservada ?? 0,
+        quantidade_separada: it.quantidade_separada ?? 0,
+        quantidade_utilizada: it.quantidade_utilizada ?? 0,
+        quantidade_retornada: it.quantidade_retornada ?? 0,
+        lote: it.lote,
+        numero_serie: it.numero_serie,
+        status: it.status || 'PENDENTE',
+        observacoes: it.observacoes,
+      }));
+
+      const { error: itensError } = await supabase
+        .from('reserva_itens')
+        .insert(itensInsert);
+
+      if (itensError) throw itensError;
+    }
+
+    return reserva as Reserva;
   },
 
-  async updateVeiculo(id: string, updates: Partial<Veiculo>): Promise<Veiculo> {
+  async confirmReserva(id: string): Promise<Reserva> {
     const { data, error } = await supabase
-      .from('veiculos')
-      .update(updates)
+      .from('reservas')
+      .update({ status: 'CONFIRMADA', updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Veiculo;
+    return data as Reserva;
   },
+};
 
-  async deleteVeiculo(id: string): Promise<void> {
-    const { error } = await supabase.from('veiculos').delete().eq('id', id);
-    if (error) throw error;
-  },
-
-  async getCondutores(): Promise<Condutor[]> {
+// =====================================================================
+// EQUIPAMENTOS SERVICE
+// =====================================================================
+export const equipamentosService = {
+  async getAll(): Promise<Equipamento[]> {
     const { data, error } = await supabase
-      .from('condutores')
+      .from('equipamentos')
       .select('*')
       .order('nome', { ascending: true });
 
     if (error) throw error;
-    return (data as Condutor[]) || [];
+    return (data as Equipamento[]) || [];
   },
 
-  async createCondutor(c: Omit<Condutor, 'id'>): Promise<Condutor> {
+  async getDisponiveis(): Promise<Equipamento[]> {
     const { data, error } = await supabase
-      .from('condutores')
-      .insert(c)
-      .select()
-      .single();
+      .from('equipamentos')
+      .select('*')
+      .eq('status', 'DISPONIVEL')
+      .eq('ativo', true)
+      .eq('disponivel_para_reserva', true)
+      .order('nome', { ascending: true });
 
     if (error) throw error;
-    return data as Condutor;
+    return (data as Equipamento[]) || [];
   },
 
-  async updateCondutor(id: string, updates: Partial<Condutor>): Promise<Condutor> {
+  async update(id: string, updates: Partial<Equipamento>): Promise<Equipamento> {
     const { data, error } = await supabase
-      .from('condutores')
+      .from('equipamentos')
       .update(updates)
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Condutor;
+    return data as Equipamento;
   },
 
-  async deleteCondutor(id: string): Promise<void> {
-    const { error } = await supabase.from('condutores').delete().eq('id', id);
-    if (error) throw error;
-  },
-
-  async getChecklists(): Promise<ChecklistFrota[]> {
+  async updateStatus(id: string, status: StatusEquipamento): Promise<Equipamento> {
     const { data, error } = await supabase
-      .from('checklists')
-      .select('*')
-      .order('data', { ascending: false });
-
-    if (error) throw error;
-    return (data as ChecklistFrota[]) || [];
-  },
-
-  async saveChecklist(c: Omit<ChecklistFrota, 'id'>): Promise<ChecklistFrota> {
-    const { data, error } = await supabase
-      .from('checklists')
-      .insert(c)
+      .from('equipamentos')
+      .update({ status })
+      .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as ChecklistFrota;
+    return data as Equipamento;
+  },
+};
+
+// =====================================================================
+// ORDENS DE SERVIÇO SERVICE
+// =====================================================================
+export const ordensServicoService = {
+  async getAll(): Promise<OrdemServico[]> {
+    const { data, error } = await supabase
+      .from('ordens_servico')
+      .select('*, itens:os_itens(*)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data as OrdemServico[]) || [];
+  },
+
+  async getByStatus(status: StatusOS): Promise<OrdemServico[]> {
+    const { data, error } = await supabase
+      .from('ordens_servico')
+      .select('*, itens:os_itens(*)')
+      .eq('status', status)
+      .order('data_planejada', { ascending: true });
+
+    if (error) throw error;
+    return (data as OrdemServico[]) || [];
+  },
+
+  async create(os: Omit<OrdemServico, 'id' | 'created_at'>): Promise<OrdemServico> {
+    const { data: ordemData, error: osError } = await supabase
+      .from('ordens_servico')
+      .insert({
+        numero: os.numero,
+        cirurgia_id: os.cirurgia_id,
+        hospital_id: os.hospital_id,
+        hospital_nome: os.hospital_nome,
+        endereco_entrega: os.endereco_entrega,
+        tipo: os.tipo,
+        motorista_id: os.motorista_id,
+        motorista_nome: os.motorista_nome,
+        veiculo_id: os.veiculo_id,
+        veiculo_placa: os.veiculo_placa,
+        data_planejada: os.data_planejada,
+        horario_planejado: os.horario_planejado,
+        status: os.status || 'PENDENTE',
+        observacoes: os.observacoes,
+        created_by: os.created_by,
+      })
+      .select()
+      .single();
+
+    if (osError) throw osError;
+
+    if (os.itens && os.itens.length > 0) {
+      const itensInsert = os.itens.map((it) => ({
+        os_id: ordemData.id,
+        tipo: it.tipo,
+        produto_id: it.produto_id,
+        equipamento_id: it.equipamento_id,
+        descricao: it.descricao,
+        quantidade: it.quantidade,
+        lote: it.lote,
+        numero_serie: it.numero_serie,
+        divergencia: it.divergencia ?? false,
+        divergencia_descricao: it.divergencia_descricao,
+      }));
+
+      const { error: itensError } = await supabase
+        .from('os_itens')
+        .insert(itensInsert);
+
+      if (itensError) throw itensError;
+    }
+
+    return ordemData as OrdemServico;
+  },
+
+  async update(id: string, updates: Partial<OrdemServico>): Promise<OrdemServico> {
+    const { data, error } = await supabase
+      .from('ordens_servico')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as OrdemServico;
+  },
+
+  async concluir(id: string, comprovante_url?: string, responsavel_recebimento?: string): Promise<OrdemServico> {
+    const { data, error } = await supabase
+      .from('ordens_servico')
+      .update({
+        status: 'CONCLUIDA' as StatusOS,
+        data_execucao: new Date().toISOString(),
+        comprovante_url,
+        responsavel_recebimento,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as OrdemServico;
+  },
+};
+
+// =====================================================================
+// ROTAS SERVICE
+// =====================================================================
+export const rotasService = {
+  async getAll(): Promise<Rota[]> {
+    const { data, error } = await supabase
+      .from('rotas')
+      .select('*, paradas:rota_paradas(*)')
+      .order('data', { ascending: false });
+
+    if (error) throw error;
+    return (data as Rota[]) || [];
+  },
+
+  async getByData(data: string): Promise<Rota[]> {
+    const { data: rows, error } = await supabase
+      .from('rotas')
+      .select('*, paradas:rota_paradas(*)')
+      .eq('data', data)
+      .order('horario_partida_planejado', { ascending: true });
+
+    if (error) throw error;
+    return (rows as Rota[]) || [];
+  },
+
+  async create(r: Omit<Rota, 'id'>): Promise<Rota> {
+    const { data, error } = await supabase
+      .from('rotas')
+      .insert({
+        numero: r.numero,
+        data: r.data,
+        motorista_id: r.motorista_id,
+        veiculo_id: r.veiculo_id,
+        status: r.status || 'PLANEJADA',
+        horario_partida_planejado: r.horario_partida_planejado,
+        horario_retorno_planejado: r.horario_retorno_planejado,
+        observacoes: r.observacoes,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Rota;
+  },
+
+  async update(id: string, updates: Partial<Rota>): Promise<Rota> {
+    const { data, error } = await supabase
+      .from('rotas')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Rota;
+  },
+};
+
+// =====================================================================
+// OPERATIONAL EVENTS SERVICE (Timeline)
+// =====================================================================
+export const operationalEventsService = {
+  async getByCirurgia(cirurgia_id: string): Promise<OperationalEvent[]> {
+    const { data, error } = await supabase
+      .from('operational_events')
+      .select('*')
+      .eq('cirurgia_id', cirurgia_id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data as OperationalEvent[]) || [];
+  },
+
+  async getByProtocolo(protocolo_id: string): Promise<OperationalEvent[]> {
+    const { data, error } = await supabase
+      .from('operational_events')
+      .select('*')
+      .eq('protocolo_id', protocolo_id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data as OperationalEvent[]) || [];
+  },
+
+  async createEvent(event: Omit<OperationalEvent, 'id' | 'created_at'>): Promise<OperationalEvent> {
+    const { data, error } = await supabase
+      .from('operational_events')
+      .insert({
+        tipo: event.tipo,
+        descricao: event.descricao,
+        protocolo_id: event.protocolo_id,
+        autorizacao_id: event.autorizacao_id,
+        cirurgia_id: event.cirurgia_id,
+        reserva_id: event.reserva_id,
+        os_id: event.os_id,
+        usuario_id: event.usuario_id,
+        metadados: event.metadados,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as OperationalEvent;
+  },
+};
+
+// =====================================================================
+// NOTIFICATIONS SERVICE
+// =====================================================================
+export const notificationsService = {
+  async getByUser(usuario_id: string): Promise<Notification[]> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('usuario_id', usuario_id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data as Notification[]) || [];
+  },
+
+  async markAsRead(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ lida: true })
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  async create(n: Omit<Notification, 'id' | 'created_at' | 'lida'>): Promise<Notification> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({
+        usuario_id: n.usuario_id,
+        tipo: n.tipo,
+        titulo: n.titulo,
+        mensagem: n.mensagem,
+        lida: false,
+        protocolo_id: n.protocolo_id,
+        cirurgia_id: n.cirurgia_id,
+        link_acao: n.link_acao,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Notification;
   },
 };

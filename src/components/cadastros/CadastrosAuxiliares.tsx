@@ -1,24 +1,30 @@
 import React, { useState } from 'react';
 import { useData } from '../../hooks/useData';
 import { useAuth } from '../../hooks/useAuth';
-import { Hospital, Medico, Convenio, Vendedor } from '../../types';
-import { Layers, Building2, Stethoscope, HeartHandshake, UserCheck, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Hospital, Medico, Convenio, Vendedor, Paciente, Procedimento, Produto } from '../../types';
+import { Layers, Building2, Stethoscope, HeartHandshake, UserCheck, Users, Activity, Package, Plus, Edit2, Trash2, X, Search } from 'lucide-react';
 
 export const CadastrosAuxiliares: React.FC = () => {
   const {
-    hospitais, medicos, convenios, vendedores,
+    hospitais, medicos, convenios, vendedores, pacientes, procedimentos, produtos,
     addHospital, updateHospital, deleteHospital,
     addMedico, updateMedico, deleteMedico,
     addConvenio, updateConvenio, deleteConvenio,
-    addVendedor, updateVendedor, deleteVendedor
+    addVendedor, updateVendedor, deleteVendedor,
+    addPaciente, updatePaciente, deletePaciente,
+    addProcedimento, updateProcedimento, deleteProcedimento,
+    addProduto, updateProduto, deleteProduto,
   } = useData();
   const { logAuditEvent } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'hospitais' | 'medicos' | 'convenios' | 'vendedores'>('hospitais');
+  const [activeTab, setActiveTab] = useState<'hospitais' | 'medicos' | 'pacientes' | 'procedimentos' | 'produtos' | 'convenios' | 'vendedores'>('hospitais');
 
   // Modal states
-  const [modalType, setModalType] = useState<'hospital' | 'medico' | 'convenio' | 'vendedor' | null>(null);
+  const [modalType, setModalType] = useState<'hospital' | 'medico' | 'convenio' | 'vendedor' | 'paciente' | 'procedimento' | 'produto' | null>(null);
   const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [pacienteSearch, setPacienteSearch] = useState('');
+  const [procedimentoSearch, setProcedimentoSearch] = useState('');
+  const [produtoSearch, setProdutoSearch] = useState('');
 
   // Forms
   const [hospitalForm, setHospitalForm] = useState({
@@ -49,7 +55,25 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [vendedorForm, setVendedorForm] = useState({
     nome: '',
     email: '',
-    comissao_padrao_pct: 5.0,
+    telefone: '',
+    ativo: true,
+  });
+
+  const [pacienteForm, setPacienteForm] = useState({
+    nome: '',
+  });
+
+  const [procedimentoForm, setProcedimentoForm] = useState({
+    codigo: '',
+    descricao: '',
+    especialidade: 'Ortopedia e Traumatologia',
+    ativo: true,
+  });
+
+  const [produtoForm, setProdutoForm] = useState({
+    codigo: '',
+    descricao: '',
+    unidade: 'UN',
     ativo: true,
   });
 
@@ -57,7 +81,7 @@ export const CadastrosAuxiliares: React.FC = () => {
   const handleOpenHospitalModal = (h?: Hospital) => {
     if (h) {
       setEditingItem(h);
-      setHospitalForm({ nome: h.nome, cnpj: h.cnpj, cidade: h.cidade, estado: h.estado, contato: h.contato, ativo: h.ativo });
+      setHospitalForm({ nome: h.nome, cnpj: h.cnpj || '', cidade: h.cidade || '', estado: h.estado || '', contato: h.contato_principal || '', ativo: h.ativo });
     } else {
       setEditingItem(null);
       setHospitalForm({ nome: '', cnpj: '', cidade: 'São Paulo', estado: 'SP', contato: '', ativo: true });
@@ -90,12 +114,65 @@ export const CadastrosAuxiliares: React.FC = () => {
   const handleOpenVendedorModal = (v?: Vendedor) => {
     if (v) {
       setEditingItem(v);
-      setVendedorForm({ nome: v.nome, email: v.email, comissao_padrao_pct: v.comissao_padrao_pct, ativo: v.ativo });
+      setVendedorForm({ nome: v.nome, email: v.email || '', telefone: v.telefone || '', ativo: v.ativo });
     } else {
       setEditingItem(null);
-      setVendedorForm({ nome: '', email: '', comissao_padrao_pct: 5.0, ativo: true });
+      setVendedorForm({ nome: '', email: '', telefone: '', ativo: true });
     }
     setModalType('vendedor');
+  };
+
+  const handleOpenPacienteModal = (p?: Paciente) => {
+    if (p) {
+      setEditingItem(p);
+      setPacienteForm({ nome: p.nome });
+    } else {
+      setEditingItem(null);
+      setPacienteForm({ nome: '' });
+    }
+    setModalType('paciente');
+  };
+
+  const handleOpenProcedimentoModal = (p?: Procedimento) => {
+    if (p) {
+      setEditingItem(p);
+      setProcedimentoForm({
+        codigo: p.codigo,
+        descricao: p.descricao,
+        especialidade: p.especialidade || 'Ortopedia e Traumatologia',
+        ativo: p.ativo,
+      });
+    } else {
+      setEditingItem(null);
+      setProcedimentoForm({
+        codigo: '',
+        descricao: '',
+        especialidade: 'Ortopedia e Traumatologia',
+        ativo: true,
+      });
+    }
+    setModalType('procedimento');
+  };
+
+  const handleOpenProdutoModal = (p?: Produto) => {
+    if (p) {
+      setEditingItem(p);
+      setProdutoForm({
+        codigo: p.codigo,
+        descricao: p.descricao,
+        unidade: p.unidade || 'UN',
+        ativo: p.ativo ?? true,
+      });
+    } else {
+      setEditingItem(null);
+      setProdutoForm({
+        codigo: '',
+        descricao: '',
+        unidade: 'UN',
+        ativo: true,
+      });
+    }
+    setModalType('produto');
   };
 
   // Submit Handlers
@@ -147,6 +224,59 @@ export const CadastrosAuxiliares: React.FC = () => {
     setModalType(null);
   };
 
+  const handlePacienteSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pacienteForm.nome.trim()) return;
+    if (editingItem) {
+      updatePaciente(editingItem.id, { nome: pacienteForm.nome.trim() });
+      logAuditEvent('UPDATE_PACIENTE', 'Cadastros', pacienteForm.nome.trim());
+    } else {
+      addPaciente({ nome: pacienteForm.nome.trim() });
+      logAuditEvent('CREATE_PACIENTE', 'Cadastros', pacienteForm.nome.trim());
+    }
+    setModalType(null);
+  };
+
+  const handleProcedimentoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!procedimentoForm.descricao.trim()) return;
+    if (editingItem) {
+      updateProcedimento(editingItem.id, procedimentoForm);
+      logAuditEvent('UPDATE_PROCEDIMENTO', 'Cadastros', editingItem.descricao, { codigo: procedimentoForm.codigo });
+    } else {
+      addProcedimento(procedimentoForm);
+      logAuditEvent('CREATE_PROCEDIMENTO', 'Cadastros', procedimentoForm.descricao, { codigo: procedimentoForm.codigo });
+    }
+    setModalType(null);
+  };
+
+  const handleProdutoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!produtoForm.descricao.trim()) return;
+    const cod = produtoForm.codigo.trim() || `OPME-${Date.now().toString().slice(-4)}`;
+    if (editingItem) {
+      updateProduto(editingItem.id, {
+        codigo: cod,
+        descricao: produtoForm.descricao.trim(),
+        unidade: produtoForm.unidade || 'UN',
+        ativo: produtoForm.ativo,
+      });
+      logAuditEvent('UPDATE_PRODUTO', 'Cadastros', produtoForm.descricao.trim(), { codigo: cod });
+    } else {
+      addProduto({
+        codigo: cod,
+        descricao: produtoForm.descricao.trim(),
+        unidade: produtoForm.unidade || 'UN',
+        controla_lote: true,
+        controla_validade: true,
+        controla_serie: true,
+        ativo: produtoForm.ativo,
+      });
+      logAuditEvent('CREATE_PRODUTO', 'Cadastros', produtoForm.descricao.trim(), { codigo: cod });
+    }
+    setModalType(null);
+  };
+
   // Delete Handlers
   const handleDeleteHospital = (h: Hospital) => {
     if (confirm(`Excluir o hospital "${h.nome}"?`)) {
@@ -176,6 +306,27 @@ export const CadastrosAuxiliares: React.FC = () => {
     }
   };
 
+  const handleDeletePaciente = (p: Paciente) => {
+    if (confirm(`Excluir o paciente "${p.nome}"?`)) {
+      deletePaciente(p.id);
+      logAuditEvent('DELETE_PACIENTE', 'Cadastros', p.nome);
+    }
+  };
+
+  const handleDeleteProcedimento = (p: Procedimento) => {
+    if (confirm(`Excluir o procedimento "${p.descricao}"?`)) {
+      deleteProcedimento(p.id);
+      logAuditEvent('DELETE_PROCEDIMENTO', 'Cadastros', p.descricao);
+    }
+  };
+
+  const handleDeleteProduto = (p: Produto) => {
+    if (confirm(`Excluir o produto "${p.descricao}"?`)) {
+      deleteProduto(p.id);
+      logAuditEvent('DELETE_PRODUTO', 'Cadastros', p.descricao);
+    }
+  };
+
   return (
     <div className="space-y-3.5 animate-in fade-in duration-300">
       
@@ -190,12 +341,39 @@ export const CadastrosAuxiliares: React.FC = () => {
               Cadastros Auxiliares OPME
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Gerenciamento de tabelas mestres de hospitais, médicos cirurgiões, convênios de saúde e representantes.
+              Gerenciamento de tabelas mestres de pacientes, hospitais, médicos cirurgiões, convênios de saúde e representantes.
             </p>
           </div>
         </div>
 
         <div className="shrink-0 self-start sm:self-auto">
+          {activeTab === 'pacientes' && (
+            <button
+              onClick={() => handleOpenPacienteModal()}
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Paciente
+            </button>
+          )}
+          {activeTab === 'procedimentos' && (
+            <button
+              onClick={() => handleOpenProcedimentoModal()}
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Procedimento
+            </button>
+          )}
+          {activeTab === 'produtos' && (
+            <button
+              onClick={() => handleOpenProdutoModal()}
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Produto
+            </button>
+          )}
           {activeTab === 'hospitais' && (
             <button
               onClick={() => handleOpenHospitalModal()}
@@ -236,7 +414,22 @@ export const CadastrosAuxiliares: React.FC = () => {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">PACIENTES</p>
+          <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{pacientes?.length || 0}</p>
+          <p className="text-[10px] font-bold text-sky-600 mt-0.5">Base Ativa OPME</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">PROCEDIMENTOS</p>
+          <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{procedimentos?.length || 0}</p>
+          <p className="text-[10px] font-bold text-purple-600 mt-0.5">TUSS / CBHPM</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">PRODUTOS OPME</p>
+          <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{produtos?.length || 0}</p>
+          <p className="text-[10px] font-bold text-emerald-600 mt-0.5">Catálogo Geral</p>
+        </div>
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs">
           <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">HOSPITAIS CREDENCIADOS</p>
           <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{hospitais.length}</p>
@@ -253,7 +446,7 @@ export const CadastrosAuxiliares: React.FC = () => {
           <p className="text-[10px] font-bold text-blue-600 mt-0.5">Principais Convênios</p>
         </div>
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">REPRESENTANTES COMERCIAIS</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">REPRESENTANTES</p>
           <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{vendedores.length}</p>
           <p className="text-[10px] font-bold text-amber-600 mt-0.5">Equipe Ativa</p>
         </div>
@@ -261,6 +454,36 @@ export const CadastrosAuxiliares: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('pacientes')}
+          className={`pb-2 px-2.5 text-xs font-extrabold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            activeTab === 'pacientes' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5" />
+          Pacientes ({pacientes?.length || 0})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('procedimentos')}
+          className={`pb-2 px-2.5 text-xs font-extrabold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            activeTab === 'procedimentos' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+          }`}
+        >
+          <Activity className="w-3.5 h-3.5" />
+          Procedimentos ({procedimentos?.length || 0})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('produtos')}
+          className={`pb-2 px-2.5 text-xs font-extrabold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            activeTab === 'produtos' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+          }`}
+        >
+          <Package className="w-3.5 h-3.5" />
+          Produtos ({produtos?.length || 0})
+        </button>
+
         <button
           onClick={() => setActiveTab('hospitais')}
           className={`pb-2 px-2.5 text-xs font-extrabold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
@@ -304,6 +527,270 @@ export const CadastrosAuxiliares: React.FC = () => {
 
       {/* Content Grid */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xs p-3.5">
+        {activeTab === 'pacientes' && (
+          <div className="space-y-3">
+            {/* Search & Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar paciente por nome..."
+                  value={pacienteSearch}
+                  onChange={(e) => setPacienteSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                />
+              </div>
+              <span className="text-[11px] text-slate-400 font-medium">
+                {pacientes.filter(p => p.nome.toLowerCase().includes(pacienteSearch.toLowerCase())).length} pacientes cadastrados
+              </span>
+            </div>
+
+            {/* List */}
+            {pacientes.filter(p => p.nome.toLowerCase().includes(pacienteSearch.toLowerCase())).length === 0 ? (
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <Users className="w-8 h-8 mx-auto opacity-40" />
+                <p className="text-xs font-bold">Nenhum paciente encontrado</p>
+                <button
+                  onClick={() => handleOpenPacienteModal()}
+                  className="text-xs text-blue-600 hover:underline font-bold"
+                >
+                  Cadastrar primeiro paciente
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {pacientes
+                  .filter(p => p.nome.toLowerCase().includes(pacienteSearch.toLowerCase()))
+                  .map((p) => (
+                    <div key={p.id} className="p-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between text-xs relative group hover:border-blue-500/40 transition-colors">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs shrink-0">
+                          {p.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <p className="font-extrabold text-slate-900 dark:text-white text-sm truncate">{p.nome}</p>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleOpenPacienteModal(p)}
+                          className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePaciente(p)}
+                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'procedimentos' && (
+          <div className="space-y-3">
+            {/* Search & Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar por código, nome ou especialidade..."
+                  value={procedimentoSearch}
+                  onChange={(e) => setProcedimentoSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                />
+              </div>
+              <span className="text-[11px] text-slate-400 font-medium">
+                {procedimentos.filter(p =>
+                  p.descricao.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
+                  p.codigo.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
+                  (p.especialidade && p.especialidade.toLowerCase().includes(procedimentoSearch.toLowerCase()))
+                ).length} procedimentos cadastrados
+              </span>
+            </div>
+
+            {/* List */}
+            {procedimentos.filter(p =>
+              p.descricao.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
+              p.codigo.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
+              (p.especialidade && p.especialidade.toLowerCase().includes(procedimentoSearch.toLowerCase()))
+            ).length === 0 ? (
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <Activity className="w-8 h-8 mx-auto opacity-40 text-purple-500" />
+                <p className="text-xs font-bold">Nenhum procedimento encontrado</p>
+                <button
+                  onClick={() => handleOpenProcedimentoModal()}
+                  className="text-xs text-blue-600 hover:underline font-bold"
+                >
+                  Cadastrar primeiro procedimento
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {procedimentos
+                  .filter(p =>
+                    p.descricao.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
+                    p.codigo.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
+                    (p.especialidade && p.especialidade.toLowerCase().includes(procedimentoSearch.toLowerCase()))
+                  )
+                  .map((p) => (
+                    <div key={p.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 text-xs relative group hover:border-purple-500/40 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black text-xs shrink-0">
+                            <Activity className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-extrabold text-slate-900 dark:text-white text-sm">{p.descricao}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="font-mono text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                TUSS: {p.codigo}
+                              </span>
+                              {p.especialidade && (
+                                <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">
+                                  {p.especialidade}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleOpenProcedimentoModal(p)}
+                            className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                            title="Editar"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProcedimento(p)}
+                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          p.ativo
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                            : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${p.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                          {p.ativo ? 'Procedimento Ativo' : 'Inativo'}
+                        </span>
+                        <span className="text-[10px] text-slate-400">Protocolos & Mapa Cirúrgico</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'produtos' && (
+          <div className="space-y-3">
+            {/* Search & Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar produto por código ou descrição..."
+                  value={produtoSearch}
+                  onChange={(e) => setProdutoSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                />
+              </div>
+              <span className="text-[11px] text-slate-400 font-medium">
+                {produtos.filter(p =>
+                  p.descricao.toLowerCase().includes(produtoSearch.toLowerCase()) ||
+                  p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase())
+                ).length} produtos cadastrados
+              </span>
+            </div>
+
+            {/* List */}
+            {produtos.filter(p =>
+              p.descricao.toLowerCase().includes(produtoSearch.toLowerCase()) ||
+              p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase())
+            ).length === 0 ? (
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <Package className="w-8 h-8 mx-auto opacity-40 text-emerald-500" />
+                <p className="text-xs font-bold">Nenhum produto encontrado</p>
+                <button
+                  onClick={() => handleOpenProdutoModal()}
+                  className="text-xs text-blue-600 hover:underline font-bold"
+                >
+                  Cadastrar primeiro produto
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {produtos
+                  .filter(p =>
+                    p.descricao.toLowerCase().includes(produtoSearch.toLowerCase()) ||
+                    p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase())
+                  )
+                  .map((p) => (
+                    <div key={p.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 text-xs relative group hover:border-blue-500/40 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                            <Package className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-bold text-[10px]">
+                                {p.codigo}
+                              </span>
+                              {p.ativo ? (
+                                <span className="text-[10px] text-emerald-600 font-bold">Ativo</span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-bold">Inativo</span>
+                              )}
+                            </div>
+                            <p className="font-extrabold text-slate-900 dark:text-white text-sm mt-1 leading-snug">
+                              {p.descricao}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => handleOpenProdutoModal(p)}
+                            className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                            title="Editar"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduto(p)}
+                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'hospitais' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {hospitais.map((h) => (
@@ -329,7 +816,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </div>
                 <p className="text-slate-500 font-medium">CNPJ: <span className="font-mono">{h.cnpj}</span></p>
                 <p className="text-slate-500 font-medium">Localidade: {h.cidade} - {h.estado}</p>
-                <p className="text-slate-500 font-medium">Contato: {h.contato}</p>
+                <p className="text-slate-500 font-medium">Contato: {h.contato_principal || '-'}</p>
               </div>
             ))}
           </div>
@@ -419,8 +906,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <p className="text-slate-500 font-medium">E-mail: {v.email}</p>
-                <p className="text-slate-500 font-medium">Comissão Padrão: <strong className="text-slate-900 dark:text-white">{v.comissao_padrao_pct}%</strong></p>
+                <p className="text-slate-500 font-medium">E-mail: {v.email || '—'}</p>
+                {v.telefone && <p className="text-slate-500 font-medium">Telefone: {v.telefone}</p>}
               </div>
             ))}
           </div>
@@ -721,14 +1208,13 @@ export const CadastrosAuxiliares: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300">Comissão Padrão (%)</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Telefone / Celular</label>
                 <input
-                  type="number"
-                  step="0.1"
-                  value={vendedorForm.comissao_padrao_pct}
-                  onChange={(e) => setVendedorForm({ ...vendedorForm, comissao_padrao_pct: Number(e.target.value) })}
-                  className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-slate-800 dark:text-slate-200"
-                  required
+                  type="text"
+                  placeholder="(11) 99999-9999"
+                  value={vendedorForm.telefone}
+                  onChange={(e) => setVendedorForm({ ...vendedorForm, telefone: e.target.value })}
+                  className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
                 />
               </div>
 
@@ -745,6 +1231,218 @@ export const CadastrosAuxiliares: React.FC = () => {
                   className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 shadow-md"
                 >
                   {editingItem ? 'Atualizar Vendedor' : 'Salvar Vendedor'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Paciente */}
+      {modalType === 'paciente' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                {editingItem ? 'Editar Paciente' : 'Novo Paciente OPME'}
+              </h2>
+              <button onClick={() => setModalType(null)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePacienteSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Nome do Paciente *</label>
+                <input
+                  type="text"
+                  placeholder="Nome completo do paciente..."
+                  value={pacienteForm.nome}
+                  onChange={(e) => setPacienteForm({ ...pacienteForm, nome: e.target.value })}
+                  className="w-full mt-1.5 p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setModalType(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 shadow-md"
+                >
+                  {editingItem ? 'Atualizar Paciente' : 'Salvar Paciente'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Procedimento */}
+      {modalType === 'procedimento' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Activity className="w-5 h-5 text-purple-600" />
+                {editingItem ? 'Editar Procedimento' : 'Novo Procedimento OPME'}
+              </h2>
+              <button onClick={() => setModalType(null)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleProcedimentoSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Código TUSS / CBHPM / SUS *</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 30715016"
+                  value={procedimentoForm.codigo}
+                  onChange={(e) => setProcedimentoForm({ ...procedimentoForm, codigo: e.target.value })}
+                  className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-mono font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Descrição do Procedimento *</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Artrodese Cervical Anterior 2 Níveis"
+                  value={procedimentoForm.descricao}
+                  onChange={(e) => setProcedimentoForm({ ...procedimentoForm, descricao: e.target.value })}
+                  className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Especialidade Cirúrgica</label>
+                <select
+                  value={procedimentoForm.especialidade}
+                  onChange={(e) => setProcedimentoForm({ ...procedimentoForm, especialidade: e.target.value })}
+                  className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium"
+                >
+                  <option value="Coluna Vertebral">Coluna Vertebral</option>
+                  <option value="Quadril">Quadril</option>
+                  <option value="Joelho">Joelho</option>
+                  <option value="Ombro e Cotovelo">Ombro e Cotovelo</option>
+                  <option value="Ortopedia e Traumatologia">Ortopedia e Traumatologia</option>
+                  <option value="Neurocirurgia">Neurocirurgia</option>
+                  <option value="Bucomaxilofacial">Bucomaxilofacial</option>
+                  <option value="Cardiovascular">Cardiovascular</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="proc-ativo"
+                  checked={procedimentoForm.ativo}
+                  onChange={(e) => setProcedimentoForm({ ...procedimentoForm, ativo: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="proc-ativo" className="font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Procedimento Ativo no Catálogo
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setModalType(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 shadow-md"
+                >
+                  {editingItem ? 'Atualizar Procedimento' : 'Salvar Procedimento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Produto */}
+      {modalType === 'produto' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Package className="w-5 h-5 text-emerald-600" />
+                {editingItem ? 'Editar Produto' : 'Novo Produto OPME'}
+              </h2>
+              <button onClick={() => setModalType(null)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleProdutoSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Produto (Código / Referência) *</label>
+                <input
+                  type="text"
+                  placeholder="Ex: OPME-COL-001"
+                  value={produtoForm.codigo}
+                  onChange={(e) => setProdutoForm({ ...produtoForm, codigo: e.target.value })}
+                  className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Descrição do Produto *</label>
+                <textarea
+                  placeholder="Ex: Gaiola Cervical PEEK 12x14mm"
+                  value={produtoForm.descricao}
+                  onChange={(e) => setProdutoForm({ ...produtoForm, descricao: e.target.value })}
+                  rows={3}
+                  className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-bold resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="prod-ativo"
+                  checked={produtoForm.ativo}
+                  onChange={(e) => setProdutoForm({ ...produtoForm, ativo: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="prod-ativo" className="font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Produto Ativo no Catálogo
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setModalType(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 shadow-md"
+                >
+                  {editingItem ? 'Atualizar Produto' : 'Salvar Produto'}
                 </button>
               </div>
             </form>

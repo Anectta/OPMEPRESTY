@@ -251,11 +251,12 @@ export const LoginScreen: React.FC = () => {
                     className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white"
                   >
                     <option value="admin">Administrador (Acesso Total)</option>
-                    <option value="comercial">Comercial / Vendedor</option>
+                    <option value="vendedor">Vendedor / Representante Comercial</option>
+                    <option value="gestor">Gestor Geral</option>
                     <option value="estoque">Gestor de Estoque OPME</option>
-                    <option value="gestor_frota">Gestor de Frota</option>
+                    <option value="logistica">Logística & Frota</option>
                     <option value="motorista">Motorista / Entregador</option>
-                    <option value="financeiro">Financeiro</option>
+                    <option value="auditor">Auditor de Conformidade</option>
                   </select>
                 </div>
               )}

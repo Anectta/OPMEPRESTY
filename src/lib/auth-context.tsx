@@ -21,6 +21,7 @@ interface AuthContextType {
     changes?: any,
     severity?: 'low' | 'medium' | 'high' | 'critical'
   ) => Promise<void>;
+  updateUserVendedor?: (vendedorId: string, vendedorNome: string) => void;
   refreshProfile: () => Promise<void>;
 }
 
@@ -157,20 +158,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     changes?: any,
     severity: 'low' | 'medium' | 'high' | 'critical' = 'medium'
   ) => {
+    const userName = user?.nome || (user?.email ? user.email.split('@')[0] : 'Usuário OPME');
     const newLog: AuditLog = {
-      id: `log-${Date.now()}`,
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       action,
       severity,
       user_id: user?.id || 'anon',
+      usuario_id: user?.id || 'anon',
+      user_nome: userName,
+      usuario_nome: userName,
       user_email: user?.email || 'sistema@prestymedick.com.br',
+      usuario_email: user?.email || 'sistema@prestymedick.com.br',
       user_role: role,
+      usuario_role: role,
       resource_type: resourceType,
+      modulo: resourceType,
+      entidade: resourceType,
       resource_id: resourceId,
-      changes,
+      registro_id: resourceId,
+      acao: action,
+      changes: changes || {},
       created_at: new Date().toISOString(),
     };
 
-    setAuditLogs((prev) => [newLog, ...prev]);
+    setAuditLogs((prev) => {
+      const updated = [newLog, ...prev].slice(0, 300);
+      try {
+        localStorage.setItem('presty_audit_logs', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Erro ao salvar logs localmente:', e);
+      }
+      return updated;
+    });
 
     if (IS_SUPABASE_CONFIGURED && user) {
       try {
@@ -187,8 +206,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err) {
         console.warn('Erro ao sincronizar log com Supabase:', err);
       }
-    } else {
-      localStorage.setItem('presty_audit_logs', JSON.stringify([newLog, ...auditLogs].slice(0, 100)));
     }
   };
 
@@ -275,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     nome: string,
     email: string,
     pass: string,
-    newRole: AppRole = 'user'
+    newRole: AppRole = 'operador'
   ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
@@ -350,6 +367,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('presty_role', newRole);
   };
 
+  const updateUserVendedor = (vendedorId: string, vendedorNome: string) => {
+    if (user) {
+      const updatedUser: UserProfile = {
+        ...user,
+        vendedor_id: vendedorId,
+        vendedor_nome: vendedorNome,
+      };
+      setUser(updatedUser);
+      localStorage.setItem('presty_user', JSON.stringify(updatedUser));
+      logAuditEvent('LINK_VENDEDOR_PROFILE', 'Auth', user.id, { vendedorId, vendedorNome }, 'low');
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -364,6 +394,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signup,
         logout,
         switchRole,
+        updateUserVendedor,
         logAuditEvent,
         refreshProfile,
       }}

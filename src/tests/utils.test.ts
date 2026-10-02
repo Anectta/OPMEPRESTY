@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  formatBRL,
   formatDate,
   formatDateTime,
   maskCPF,
@@ -10,31 +9,19 @@ import {
   generateId,
 } from '../lib/utils';
 
-describe('Utilitários Financeiros e de Formatação (utils.ts)', () => {
-  it('formatBRL formata valores monetários em Real brasileiro corretamente', () => {
-    // Normalização de non-breaking space para comparação universal
-    const normalize = (s: string) => s.replace(/\s/g, ' ');
-
-    expect(normalize(formatBRL(1000))).toContain('R$ 1.000,00');
-    expect(normalize(formatBRL(48500.5))).toContain('R$ 48.500,50');
-    expect(normalize(formatBRL(0))).toContain('R$ 0,00');
-    expect(normalize(formatBRL(undefined))).toBe('R$ 0,00');
-    expect(normalize(formatBRL(null))).toBe('R$ 0,00');
-    expect(normalize(formatBRL(NaN))).toBe('R$ 0,00');
-  });
-
+describe('Utilitários de Formatação (utils.ts)', () => {
   it('formatDate converte datas ISO no formato brasileiro DD/MM/AAAA', () => {
     expect(formatDate('2026-08-01')).toBe('01/08/2026');
     expect(formatDate('2025-12-31')).toBe('31/12/2025');
-    expect(formatDate(undefined)).toBe('-');
-    expect(formatDate(null)).toBe('-');
-    expect(formatDate('')).toBe('-');
+    expect(formatDate(undefined)).toBe('—');
+    expect(formatDate(null)).toBe('—');
+    expect(formatDate('')).toBe('—');
   });
 
   it('formatDateTime formata data e hora no padrão local', () => {
     const formatted = formatDateTime('2026-08-01T14:30:00Z');
-    expect(formatted).not.toBe('-');
-    expect(formatDateTime(undefined)).toBe('-');
+    expect(formatted).not.toBe('—');
+    expect(formatDateTime(undefined)).toBe('—');
   });
 
   it('generateId gera códigos únicos com prefixo e ano corrente', () => {
@@ -67,14 +54,14 @@ describe('Utilitários de Segurança e Conformidade LGPD (utils.ts)', () => {
   });
 });
 
-describe('Classificação de Status e Badges de Cirurgia / Vendas', () => {
+describe('Classificação de Status e Badges de Cirurgia (V2.0)', () => {
   it('getStatusBadge classifica corretamente status de sucesso e confirmação', () => {
     const badge = getStatusBadge('Confirmada');
     expect(badge.bg).toContain('emerald');
     expect(badge.label).toBe('Confirmada');
 
-    const faturado = getStatusBadge('Faturado');
-    expect(faturado.bg).toContain('emerald');
+    const realizada = getStatusBadge('Realizada');
+    expect(realizada.bg).toContain('emerald');
   });
 
   it('getStatusBadge classifica status de espera e planejamento', () => {
