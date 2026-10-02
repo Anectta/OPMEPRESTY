@@ -26,9 +26,6 @@ const GestaoEstoque = React.lazy(() =>
 const GestaoEquipamentos = React.lazy(() =>
   import('./components/equipamentos/GestaoEquipamentos').then((m) => ({ default: m.GestaoEquipamentos }))
 );
-const TorreControle = React.lazy(() =>
-  import('./components/torre/TorreControle').then((m) => ({ default: m.TorreControle }))
-);
 const CadastrosAuxiliares = React.lazy(() =>
   import('./components/cadastros/CadastrosAuxiliares').then((m) => ({ default: m.CadastrosAuxiliares }))
 );
@@ -53,7 +50,6 @@ const MainApp: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       const labels: Record<string, string> = {
-        torre: 'Torre de Controle',
         mapa: 'Mapa Cirúrgico',
         protocolos: 'Protocolo OPME',
         autorizacoes: 'Autorizações OPME',
@@ -89,7 +85,6 @@ const MainApp: React.FC = () => {
     <AppLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       <Suspense fallback={<PageSkeleton />}>
         {/* Módulos V2.0 — Especificação Mestre */}
-        {activeTab === 'torre' && <TorreControle />}
         {activeTab === 'mapa' && <MapaCirurgico />}
         {activeTab === 'protocolos' && <ProtocolosOPME />}
         {activeTab === 'autorizacoes' && <AutorizacoesOPME />}

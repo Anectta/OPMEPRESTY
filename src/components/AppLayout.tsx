@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   ArrowUpRight,
   Zap,
-  Radio,
 } from 'lucide-react';
 
 interface Props {
@@ -37,7 +36,6 @@ export const AppLayout: React.FC<Props> = ({ activeTab, setActiveTab, children }
 
   // Módulos V2.0 — conforme Especificação Mestre
   const menuItems = [
-    { id: 'torre', label: 'Torre de Controle', icon: Radio, gradient: 'from-sky-400 to-blue-500', shadow: 'shadow-sky-500/20' },
     { id: 'mapa', label: 'Mapa Cirúrgico', icon: Calendar, gradient: 'from-teal-500 to-emerald-600', shadow: 'shadow-teal-500/20' },
     { id: 'protocolos', label: 'Protocolo OPME', icon: FileSpreadsheet, gradient: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/20' },
     { id: 'autorizacoes', label: 'Autorizações', icon: CheckCircle2, gradient: 'from-green-500 to-emerald-700', shadow: 'shadow-green-500/20' },
