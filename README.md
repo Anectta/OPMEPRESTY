@@ -13,25 +13,21 @@ ERP vertical de alta performance para distribuidores de **OPME** (Órteses, Pró
 
 ## 🌟 Módulos da Plataforma
 
-1. **Visão Executiva (Dashboard):** KPIs financeiros em tempo real, faturamento consumido, margens operacionais e metas de vendas.
+1. **Visão Executiva (Dashboard):** KPIs operacionais em tempo real, volume de cirurgias atendidas, conformidade ANVISA e capacidade hospitalar.
 2. **Mapa Cirúrgico:** Agendamento cirúrgico centralizado com filtros por hospital, convênio, médico cirurgião, status e liberação de equipamento.
-3. **Protocolos & Cotação OPME:** Montagem ágil de orçamentos vinculados a códigos e registros da ANVISA com cálculo automático de valores.
-5. **Estoque, Lotes & Rastreabilidade:**
-   - Catálogo com saldos físicos em tempo real.
+3. **Protocolos OPME:** Montagem ágil de requisições de materiais vinculadas a códigos e registros da ANVISA com contagem e itens solicitados.
+4. **Estoque, Lotes & Rastreabilidade:**
+   - Catálogo com saldos físicos em tempo real (sem precificação comercial).
    - Monitoramento de lotes e cálculo dinâmico de vencimento ANVISA (Válido, Atenção < 90 dias, Bloqueado).
    - Histórico de movimentações (Entradas por NF, Saídas cirúrgicas, Devoluções de consignados).
    - Linha do tempo visual de rastreabilidade ponta-a-ponta (Fabricação ➔ Estoque ➔ Logística ➔ Cirurgia/Paciente).
-6. **Vendas & Faturamento:**
-   - Faturamento de cirurgias em 1 clique com geração de número de pedido e espelho de fatura.
-   - Apuração de consumo real x sobras devolvidas e margens de contribuição.
-   - Apuração automática de comissões para representantes comerciais.
-7. **Frota & Vistoria Fotográfica:**
+5. **Frota & Vistoria Fotográfica:**
    - Gestão de veículos utilitários e condutores credenciados.
    - Vistoria veicular guiada em **24 pontos** com registro fotográfico e checklist de avarias persistido no banco.
-8. **Cadastros Auxiliares:** Hospitais parceiros, médicos cirurgiões (CRM/UF), operadoras de convênio, vendedores e técnicos instrumentadores.
-9. **Relatórios & BI:** Emissão de relatórios em PDF formatados para auditoria hospitalar e sanitária.
-10. **Gestão de Usuários (RBAC):** Controle de acessos por papel (`admin`, `comercial`, `estoque`, `gestor_frota`, `motorista`, `supervisor`, `financeiro`).
-11. **Trilha de Auditoria (Audit Logs):** Log imutável de todas as ações sensíveis com categorização por severidade (`low`, `medium`, `high`, `critical`).
+6. **Cadastros Auxiliares:** Hospitais parceiros, médicos cirurgiões (CRM/UF), operadoras de convênio, vendedores e técnicos instrumentadores.
+7. **Relatórios & BI:** Emissão de relatórios em PDF formatados para auditoria hospitalar e sanitária (Cirurgias, Estoque e Frota).
+8. **Gestão de Usuários (RBAC):** Controle de acessos por papel (`admin`, `comercial`, `estoque`, `gestor_frota`, `motorista`, `supervisor`, `financeiro`).
+9. **Trilha de Auditoria (Audit Logs):** Log imutável de todas as ações sensíveis com categorização por severidade (`low`, `medium`, `high`, `critical`).
 
 ---
 

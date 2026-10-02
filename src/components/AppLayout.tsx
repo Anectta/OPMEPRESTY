@@ -51,7 +51,6 @@ export const AppLayout: React.FC<Props> = ({ activeTab, setActiveTab, children }
     { id: 'mapa', label: 'Mapa Cirúrgico', icon: Calendar, gradient: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/20' },
     { id: 'protocolos', label: 'Protocolos & Cotação', icon: FileSpreadsheet, gradient: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/20' },
     { id: 'estoque', label: 'Estoque & Lotes OPME', icon: Package, gradient: 'from-violet-500 to-purple-700', shadow: 'shadow-violet-500/20' },
-    { id: 'vendas', label: 'Vendas & Comissões', icon: TrendingUp, gradient: 'from-green-500 to-emerald-600', shadow: 'shadow-green-500/20' },
     { id: 'frota', label: 'Frota & Vistorias', icon: Truck, gradient: 'from-orange-500 to-amber-600', shadow: 'shadow-orange-500/20' },
     { id: 'cadastros', label: 'Cadastros Auxiliares', icon: Layers, gradient: 'from-cyan-500 to-blue-600', shadow: 'shadow-cyan-500/20' },
     { id: 'relatorios', label: 'Relatórios & BI', icon: FileText, gradient: 'from-fuchsia-500 to-pink-600', shadow: 'shadow-fuchsia-500/20' },

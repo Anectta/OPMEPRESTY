@@ -18,15 +18,11 @@ describe('Controle de Acesso Baseado em Papéis (RBAC Policy Tests)', () => {
       return ['admin', 'estoque'].includes(role);
     }
 
-    if (routeId === 'vendas') {
-      return ['admin', 'comercial', 'supervisor', 'financeiro'].includes(role);
-    }
-
     return true; // Dashboard, mapa, relatórios acessíveis a todos os perfis autenticados
   };
 
   it('permite acesso total ao perfil admin em todas as rotas', () => {
-    const routes = ['dashboard', 'mapa', 'protocolos', 'estoque', 'vendas', 'frota', 'usuarios', 'auditoria'];
+    const routes = ['dashboard', 'mapa', 'protocolos', 'estoque', 'frota', 'usuarios', 'auditoria'];
     routes.forEach((route) => {
       expect(isRouteAllowed('admin', route)).toBe(true);
     });

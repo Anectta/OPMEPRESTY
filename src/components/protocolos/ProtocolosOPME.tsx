@@ -28,7 +28,7 @@ export const ProtocolosOPME: React.FC = () => {
   });
 
   const [itemsList, setItemsList] = useState<Omit<ProtocoloItem, 'id' | 'protocolo_id' | 'valor_total'>[]>([
-    { produto_codigo: produtos[0]?.codigo || 'OPME-COL-001', descricao: produtos[0]?.descricao || 'Gaiola Cervical PEEK 12x14mm', quantidade: 2, valor_unitario: produtos[0]?.valor_venda || 8500.00, anvisa: produtos[0]?.anvisa },
+    { produto_codigo: produtos[0]?.codigo || 'OPME-COL-001', descricao: produtos[0]?.descricao || 'Gaiola Cervical PEEK 12x14mm', quantidade: 2, valor_unitario: 0, anvisa: produtos[0]?.anvisa },
   ]);
 
   const filteredProtocolos = protocolos.filter((p) => {

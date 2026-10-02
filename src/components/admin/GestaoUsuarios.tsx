@@ -33,8 +33,6 @@ const DEFAULT_OPERATIONAL_MODULES = [
   'Mapa Cirúrgico',
   'Protocolos & Cotação OPME',
   'Estoque & Lotes Consignados',
-  'Vendas & Comissões',
-  'Pedidos & Faturamento SEFAZ',
   'Frota & Rastreamento GPS',
   'Gestão de Motoristas',
   'Rotas & Entregas Cirúrgicas',
@@ -112,7 +110,7 @@ export const GestaoUsuarios: React.FC = () => {
 
         initial[r.id][mod] = {
           ver: true,
-          criar: isAdmin || isOps || (r.id === 'comercial' && mod.includes('Vendas')) || (r.id === 'estoque' && mod.includes('Estoque')),
+          criar: isAdmin || isOps || (r.id === 'estoque' && mod.includes('Estoque')),
           editar: isAdmin || isOps || (r.id === 'estoque' && mod.includes('Estoque')),
           excluir: isAdmin,
           aprovar: isAdmin || isOps || (r.id === 'financeiro' && mod.includes('Faturamento')),

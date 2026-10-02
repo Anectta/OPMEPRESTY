@@ -29,7 +29,7 @@ interface Props {
 }
 
 export const ExecutiveDashboard: React.FC<Props> = ({ setActiveTab }) => {
-  const { cirurgias, protocolos, produtos, vendas, veiculos } = useData();
+  const { cirurgias, protocolos, produtos, veiculos } = useData();
 
   const [pipelineActive1, setPipelineActive1] = useState(true);
   const [pipelineActive2, setPipelineActive2] = useState(true);
@@ -39,9 +39,9 @@ export const ExecutiveDashboard: React.FC<Props> = ({ setActiveTab }) => {
   const [pnlPeriod, setPnlPeriod] = useState<'2w' | '1m' | '3m'>('1m');
 
   const [settingsForm, setSettingsForm] = useState({
-    limitValue: 'R$ 50.000,00',
-    maxConsignment: 'R$ 250.000,00',
-    maxDiscount: '-2.5%',
+    limitValue: '50 Cirurgias/Mês',
+    maxConsignment: '120 Kits Consignados',
+    maxDiscount: 'Prioridade Alta',
     orderType: 'Consignado',
     aiConfirmation: true,
     pushNotifications: false,
@@ -49,8 +49,7 @@ export const ExecutiveDashboard: React.FC<Props> = ({ setActiveTab }) => {
 
   const totalCirurgias = cirurgias.length;
   const protocolosAbertos = protocolos.filter((p) => p.status === 'Em Análise' || p.status === 'Rascunho').length;
-  const valorEstoqueTotal = produtos.reduce((acc, p) => acc + (p.saldo_total * p.valor_custo), 0);
-  const faturamentoTotal = vendas.reduce((acc, v) => acc + v.valor_consumido, 0);
+  const totalProdutos = produtos.length;
 
   const dataPnlBars = [
     { day: 'M22', valor: 8000, isProfit: true },
@@ -154,25 +153,25 @@ export const ExecutiveDashboard: React.FC<Props> = ({ setActiveTab }) => {
           </div>
         </div>
 
-        {/* KPI 2: Total Revenue */}
+        {/* KPI 2: Controlled Inventory */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 shadow-xs hover:border-blue-500/40 transition-all flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-              FATURAMENTO OPME TOTAL
+              DISPOSITIVOS OPME CONTROLADOS
             </span>
             <div className="p-1.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 rounded-md">
-              <TrendingUp className="w-3.5 h-3.5" />
+              <Package className="w-3.5 h-3.5" />
             </div>
           </div>
 
           <div className="mt-2 flex items-baseline justify-between">
             <div>
               <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                R$ 4,28M
+                {produtos.reduce((acc, p) => acc + p.saldo_total, 0)} UN
               </span>
               <p className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                <ArrowUpRight className="w-3 h-3" />
-                <span>+12.1% vs mês anterior</span>
+                <CheckCircle2 className="w-3 h-3" />
+                <span>100% Conforme ANVISA RDC 751</span>
               </p>
             </div>
 
@@ -473,8 +472,8 @@ export const ExecutiveDashboard: React.FC<Props> = ({ setActiveTab }) => {
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3.5 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xs font-black text-slate-900 dark:text-white">Faturamento & P&L Cirúrgico</h2>
-              <p className="text-[10px] text-slate-400">Desempenho financeiro diário dos últimos 14 dias</p>
+              <h2 className="text-xs font-black text-slate-900 dark:text-white">Demanda Cirúrgica Diária</h2>
+              <p className="text-[10px] text-slate-400">Volume de procedimentos atendidos nos últimos 14 dias</p>
             </div>
 
             <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-md text-[9px] font-bold text-slate-600 dark:text-slate-300">
@@ -499,20 +498,20 @@ export const ExecutiveDashboard: React.FC<Props> = ({ setActiveTab }) => {
             </div>
           </div>
 
-          {/* Key PnL Stats */}
+          {/* Key Stats */}
           <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
             <div>
-              <p className="text-[9px] text-slate-400 font-medium">Total P&L</p>
-              <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">+R$ 284.720</p>
-              <p className="text-[8px] text-emerald-600 font-extrabold">▲ 6.6%</p>
+              <p className="text-[9px] text-slate-400 font-medium">Cirurgias Atendidas</p>
+              <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">142 Procedimentos</p>
+              <p className="text-[8px] text-emerald-600 font-extrabold">▲ 98.6% Sucesso</p>
             </div>
             <div>
               <p className="text-[9px] text-slate-400 font-medium">Média Diária</p>
-              <p className="text-sm font-black text-slate-900 dark:text-white">R$ 20.337</p>
+              <p className="text-sm font-black text-slate-900 dark:text-white">10.1 Cirurgias</p>
             </div>
             <div>
-              <p className="text-[9px] text-slate-400 font-medium">Maior Dia</p>
-              <p className="text-sm font-black text-blue-600 dark:text-blue-400">R$ 48.210</p>
+              <p className="text-[9px] text-slate-400 font-medium">Pico Diário</p>
+              <p className="text-sm font-black text-blue-600 dark:text-blue-400">18 Cirurgias</p>
             </div>
           </div>
 
@@ -521,8 +520,8 @@ export const ExecutiveDashboard: React.FC<Props> = ({ setActiveTab }) => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dataPnlBars} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                 <XAxis dataKey="day" stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} tickFormatter={(v) => `k`} />
-                <Tooltip formatter={(val: any) => [formatBRL(Number(val)), 'Faturamento']} />
+                <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
+                <Tooltip formatter={(val: any) => [`${Math.round(Number(val) / 2000)} Cirurgias`, 'Volume']} />
                 <Bar dataKey="valor" radius={[2, 2, 0, 0]}>
                   {dataPnlBars.map((entry, index) => (
                     <Cell

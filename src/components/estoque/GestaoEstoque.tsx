@@ -174,25 +174,16 @@ export const GestaoEstoque: React.FC = () => {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs">
           <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">PRODUTOS CADASTRADOS</p>
           <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{produtos.length}</p>
           <p className="text-[10px] font-bold text-blue-600 mt-0.5">Catálogo Geral OPME</p>
         </div>
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">VALOR EM ESTOQUE (CUSTO)</p>
-          <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">
-            {formatBRL(produtos.reduce((acc, p) => acc + p.valor_custo * p.saldo_total, 0))}
-          </p>
-          <p className="text-[10px] font-bold text-slate-400 mt-0.5">Auditoria física mensal</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">VALOR POTENCIAL VENDA</p>
-          <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
-            {formatBRL(produtos.reduce((acc, p) => acc + p.valor_venda * p.saldo_total, 0))}
-          </p>
-          <p className="text-[10px] font-bold text-emerald-600 mt-0.5">Margem Média 62%</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">LOTES ATIVOS</p>
+          <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{lotes.length}</p>
+          <p className="text-[10px] font-bold text-emerald-600 mt-0.5">Conformes ANVISA</p>
         </div>
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs">
           <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">TOTAL DE MOVIMENTAÇÕES</p>
@@ -276,8 +267,6 @@ export const GestaoEstoque: React.FC = () => {
                 <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
                   <th className="p-2.5 pl-3.5">Código / Descrição</th>
                   <th className="p-2.5">Fabricante / Grupo</th>
-                  <th className="p-2.5">Custo Médio</th>
-                  <th className="p-2.5">Preço Tabela</th>
                   <th className="p-2.5">Saldo Físico</th>
                   <th className="p-2.5 text-right pr-3.5">Status</th>
                 </tr>
@@ -304,9 +293,6 @@ export const GestaoEstoque: React.FC = () => {
                       <p className="font-bold text-slate-800 dark:text-slate-200">{p.fabricante}</p>
                       <p className="text-[9px] text-slate-400 font-medium">{p.grupo}</p>
                     </td>
-
-                    <td className="p-2.5 font-mono text-slate-600 dark:text-slate-300 font-bold">{formatBRL(p.valor_custo)}</td>
-                    <td className="p-2.5 font-mono font-black text-slate-900 dark:text-white">{formatBRL(p.valor_venda)}</td>
 
                     <td className="p-2.5">
                       <span className="font-black text-slate-900 dark:text-white">
@@ -623,27 +609,6 @@ export const GestaoEstoque: React.FC = () => {
                   className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none"
                   required
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Valor Custo (R$)</label>
-                  <input
-                    type="number"
-                    value={formData.valor_custo}
-                    onChange={(e) => setFormData({ ...formData, valor_custo: Number(e.target.value) })}
-                    className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-mono font-bold focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Valor Venda (R$)</label>
-                  <input
-                    type="number"
-                    value={formData.valor_venda}
-                    onChange={(e) => setFormData({ ...formData, valor_venda: Number(e.target.value) })}
-                    className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-mono font-black focus:outline-none"
-                  />
-                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">

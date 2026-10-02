@@ -19,9 +19,6 @@ const ProtocolosOPME = React.lazy(() =>
 const GestaoEstoque = React.lazy(() =>
   import('./components/estoque/GestaoEstoque').then((m) => ({ default: m.GestaoEstoque }))
 );
-const GestaoVendas = React.lazy(() =>
-  import('./components/vendas/GestaoVendas').then((m) => ({ default: m.GestaoVendas }))
-);
 const GestaoFrota = React.lazy(() =>
   import('./components/frota/GestaoFrota').then((m) => ({ default: m.GestaoFrota }))
 );
@@ -53,7 +50,6 @@ const MainApp: React.FC = () => {
         {activeTab === 'mapa' && <MapaCirurgico />}
         {activeTab === 'protocolos' && <ProtocolosOPME />}
         {activeTab === 'estoque' && <GestaoEstoque />}
-        {activeTab === 'vendas' && <GestaoVendas />}
         {activeTab === 'frota' && <GestaoFrota />}
         {activeTab === 'cadastros' && <CadastrosAuxiliares />}
         {activeTab === 'relatorios' && <RelatoriosPDF />}

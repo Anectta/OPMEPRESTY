@@ -6,8 +6,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const RelatoriosPDF: React.FC = () => {
-  const { cirurgias, produtos, vendas, veiculos } = useData();
-  const [reportType, setReportType] = useState<'cirurgias' | 'estoque' | 'vendas' | 'frota'>('cirurgias');
+  const { cirurgias, produtos, veiculos } = useData();
+  const [reportType, setReportType] = useState<'cirurgias' | 'estoque' | 'frota'>('cirurgias');
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -27,14 +27,8 @@ export const RelatoriosPDF: React.FC = () => {
     } else if (reportType === 'estoque') {
       autoTable(doc, {
         startY: 32,
-        head: [['Código', 'Descrição', 'ANVISA', 'Valor Custo', 'Valor Venda', 'Saldo']],
-        body: produtos.map((p) => [p.codigo, p.descricao, p.anvisa, formatBRL(p.valor_custo), formatBRL(p.valor_venda), `${p.saldo_total} ${p.unidade}`]),
-      });
-    } else if (reportType === 'vendas') {
-      autoTable(doc, {
-        startY: 32,
-        head: [['Pedido', 'Data', 'Hospital', 'Paciente', 'Vendedor', 'Consumido']],
-        body: vendas.map((v) => [v.numero, formatDate(v.data), v.cliente_hospital, v.paciente, v.vendedor_nome, formatBRL(v.valor_consumido)]),
+        head: [['Código', 'Descrição', 'ANVISA', 'Fabricante', 'Grupo', 'Saldo Físico']],
+        body: produtos.map((p) => [p.codigo, p.descricao, p.anvisa, p.fabricante, p.grupo, `${p.saldo_total} ${p.unidade}`]),
       });
     } else {
       autoTable(doc, {
@@ -80,10 +74,10 @@ export const RelatoriosPDF: React.FC = () => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Módulos</p>
-            <p className="text-base font-black text-slate-900 dark:text-white">4 Módulos</p>
+            <p className="text-base font-black text-slate-900 dark:text-white">3 Módulos</p>
           </div>
           <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-            Cirurgias, Estoque, Vendas, Frota
+            Cirurgias, Estoque, Frota
           </span>
         </div>
 
@@ -93,7 +87,7 @@ export const RelatoriosPDF: React.FC = () => {
             <p className="text-base font-black text-slate-900 dark:text-white">A4 Vector</p>
           </div>
           <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-            ANVISA & SEFAZ
+            ANVISA & Hospitalar
           </span>
         </div>
 
@@ -101,7 +95,7 @@ export const RelatoriosPDF: React.FC = () => {
           <div>
             <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Registros</p>
             <p className="text-base font-black text-slate-900 dark:text-white">
-              {cirurgias.length + produtos.length + vendas.length + veiculos.length} Linhas
+              {cirurgias.length + produtos.length + veiculos.length} Linhas
             </p>
           </div>
           <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
@@ -111,7 +105,7 @@ export const RelatoriosPDF: React.FC = () => {
       </div>
 
       {/* Compact Report Selector Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <button
           onClick={() => setReportType('cirurgias')}
           className={`p-2.5 border rounded-lg text-left transition-all flex items-center gap-2.5 cursor-pointer ${
@@ -143,21 +137,6 @@ export const RelatoriosPDF: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setReportType('vendas')}
-          className={`p-2.5 border rounded-lg text-left transition-all flex items-center gap-2.5 cursor-pointer ${
-            reportType === 'vendas'
-              ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-600 text-slate-900 dark:text-white font-bold ring-1 ring-blue-500/20'
-              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4 text-emerald-600 shrink-0" />
-          <div className="min-w-0">
-            <p className="font-extrabold text-xs text-slate-900 dark:text-white truncate">Vendas</p>
-            <p className="text-[10px] text-slate-400 truncate">Faturamento</p>
-          </div>
-        </button>
-
-        <button
           onClick={() => setReportType('frota')}
           className={`p-2.5 border rounded-lg text-left transition-all flex items-center gap-2.5 cursor-pointer ${
             reportType === 'frota'
@@ -180,7 +159,7 @@ export const RelatoriosPDF: React.FC = () => {
             Pré-visualização: <strong className="text-slate-900 dark:text-white">{reportType.toUpperCase()}</strong>
           </span>
           <span className="text-[10px] text-slate-400 font-mono font-bold">
-            A4 Portrait • {reportType === 'cirurgias' ? cirurgias.length : reportType === 'estoque' ? produtos.length : reportType === 'vendas' ? vendas.length : veiculos.length} registros
+            A4 Portrait • {reportType === 'cirurgias' ? cirurgias.length : reportType === 'estoque' ? produtos.length : veiculos.length} registros
           </span>
         </div>
 
