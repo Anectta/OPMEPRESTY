@@ -13,9 +13,6 @@ const ExecutiveDashboard = React.lazy(() =>
 const MapaCirurgico = React.lazy(() =>
   import('./components/mapa/MapaCirurgico').then((m) => ({ default: m.MapaCirurgico }))
 );
-const MapaCalorOperacional = React.lazy(() =>
-  import('./components/mapa/MapaCalorOperacional').then((m) => ({ default: m.MapaCalorOperacional }))
-);
 const ProtocolosOPME = React.lazy(() =>
   import('./components/protocolos/ProtocolosOPME').then((m) => ({ default: m.ProtocolosOPME }))
 );
@@ -54,7 +51,6 @@ const MainApp: React.FC = () => {
       <Suspense fallback={<PageSkeleton />}>
         {activeTab === 'dashboard' && <ExecutiveDashboard setActiveTab={setActiveTab} />}
         {activeTab === 'mapa' && <MapaCirurgico />}
-        {activeTab === 'mapa_calor' && <MapaCalorOperacional />}
         {activeTab === 'protocolos' && <ProtocolosOPME />}
         {activeTab === 'estoque' && <GestaoEstoque />}
         {activeTab === 'vendas' && <GestaoVendas />}

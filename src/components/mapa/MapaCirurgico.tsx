@@ -20,7 +20,6 @@ import {
   TrendingUp,
   Activity,
   ArrowRight,
-  Flame,
   Info,
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -35,7 +34,7 @@ import {
   FileText
 } from 'lucide-react';
 
-export type InternalTab = 'overview' | 'agendamento' | 'mapa_calor' | 'grade_frota';
+export type InternalTab = 'overview' | 'agendamento' | 'grade_frota';
 
 interface Props {
   initialTab?: InternalTab;
@@ -55,11 +54,6 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
   const [dateStart, setDateStart] = useState('2026-08-01');
   const [dateEnd, setDateEnd] = useState('2026-08-31');
   const [quickDatePreset, setQuickDatePreset] = useState<'hoje' | 'semana' | 'mes' | 'todos'>('mes');
-
-  // Heatmap state
-  const [heatmapMonth, setHeatmapMonth] = useState<number>(new Date().getMonth());
-  const [heatmapYear, setHeatmapYear] = useState<number>(new Date().getFullYear());
-  const [selectedHeatmapDate, setSelectedHeatmapDate] = useState<string | null>(null);
 
   // Form State for new Surgery
   const [formData, setFormData] = useState({
@@ -186,34 +180,6 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
     );
   };
 
-  // Heatmap Calendar Generator
-  const daysInHeatmapMonth = new Date(heatmapYear, heatmapMonth + 1, 0).getDate();
-  const heatmapMonthName = new Date(heatmapYear, heatmapMonth, 1).toLocaleString('pt-BR', { month: 'long' });
-
-  const heatmapDays = useMemo(() => {
-    const days = [];
-    for (let day = 1; day <= daysInHeatmapMonth; day++) {
-      const monthFormatted = String(heatmapMonth + 1).padStart(2, '0');
-      const dayFormatted = String(day).padStart(2, '0');
-      const dateStr = `${heatmapYear}-${monthFormatted}-${dayFormatted}`;
-
-      const daySurgeries = enrichedCirurgias.filter((c) => c.data === dateStr);
-      const count = daySurgeries.length;
-
-      let score = count * 20;
-      if (score > 100) score = 100;
-
-      days.push({
-        dateStr,
-        dayNumber: day,
-        count,
-        score,
-        items: daySurgeries,
-      });
-    }
-    return days;
-  }, [heatmapYear, heatmapMonth, daysInHeatmapMonth, enrichedCirurgias]);
-
   return (
     <div className="space-y-3.5 animate-in fade-in duration-300">
       
@@ -321,18 +287,6 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
             >
               <Calendar className="w-3.5 h-3.5" />
               Agenda & Tabela de Cirurgias ({filteredCirurgias.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab('mapa_calor')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                activeTab === 'mapa_calor'
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5 text-amber-500" />
-              Mapa de Calor Operacional
             </button>
 
             <button
@@ -1069,77 +1023,6 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
             </div>
           </div>
 
-        </div>
-      )}
-
-      {/* ==================== TAB 3: MAPA DE CALOR OPERACIONAL ==================== */}
-      {activeTab === 'mapa_calor' && (
-        <div className="space-y-3.5">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ChevronLeft
-                  onClick={() => setHeatmapMonth((prev) => (prev === 0 ? 11 : prev - 1))}
-                  className="w-5 h-5 text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
-                />
-                <h3 className="text-sm font-black text-slate-900 dark:text-white capitalize">
-                  {heatmapMonthName} {heatmapYear}
-                </h3>
-                <ChevronRight
-                  onClick={() => setHeatmapMonth((prev) => (prev === 11 ? 0 : prev + 1))}
-                  className="w-5 h-5 text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
-                />
-              </div>
-
-              <div className="flex items-center gap-3 text-[10px] font-bold">
-                <span className="flex items-center gap-1 text-emerald-600"><span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Baixa Carga</span>
-                <span className="flex items-center gap-1 text-amber-600"><span className="w-2.5 h-2.5 rounded bg-amber-500"></span> Moderado</span>
-                <span className="flex items-center gap-1 text-rose-600"><span className="w-2.5 h-2.5 rounded bg-rose-600"></span> Alta Carga OPME</span>
-              </div>
-            </div>
-
-            {/* Heatmap Calendar Grid */}
-            <div className="grid grid-cols-7 gap-1.5">
-              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
-                <div key={day} className="text-center text-[10px] font-extrabold uppercase text-slate-400 py-1">
-                  {day}
-                </div>
-              ))}
-
-              {heatmapDays.map((d) => {
-                let heatBg = 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300';
-                if (d.count > 0 && d.count <= 2) {
-                  heatBg = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300';
-                } else if (d.count > 2 && d.count <= 4) {
-                  heatBg = 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-200';
-                } else if (d.count > 4) {
-                  heatBg = 'bg-rose-500/20 border-rose-500/50 text-rose-900 dark:text-rose-200 font-extrabold';
-                }
-
-                return (
-                  <div
-                    key={d.dateStr}
-                    onClick={() => setSelectedHeatmapDate(d.dateStr)}
-                    className={`min-h-[70px] p-1.5 rounded-lg border transition-all cursor-pointer flex flex-col justify-between ${heatBg} hover:scale-[1.02]`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-xs font-mono font-black">{d.dayNumber}</span>
-                      {d.count > 0 && (
-                        <span className="text-[9px] font-bold px-1 rounded-full bg-white/80 dark:bg-slate-900/80 shadow-2xs">
-                          {d.count} cir.
-                        </span>
-                      )}
-                    </div>
-                    {d.count > 0 && (
-                      <div className="text-[9px] font-bold truncate opacity-80 mt-1">
-                        Kits lacrados: {d.count}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
       )}
 

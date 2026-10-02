@@ -30,8 +30,7 @@ import {
   ArrowUpRight,
   Zap,
   Radio,
-  ExternalLink,
-  Flame
+  ExternalLink
 } from 'lucide-react';
 
 interface Props {
@@ -50,7 +49,6 @@ export const AppLayout: React.FC<Props> = ({ activeTab, setActiveTab, children }
   const menuItems = [
     { id: 'dashboard', label: 'Visão Executiva', icon: Activity, gradient: 'from-blue-600 to-indigo-600', shadow: 'shadow-blue-500/20' },
     { id: 'mapa', label: 'Mapa Cirúrgico', icon: Calendar, gradient: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/20' },
-    { id: 'mapa_calor', label: 'Mapa de Calor Operacional', icon: Flame, gradient: 'from-amber-500 to-rose-600', shadow: 'shadow-amber-500/20' },
     { id: 'protocolos', label: 'Protocolos & Cotação', icon: FileSpreadsheet, gradient: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/20' },
     { id: 'estoque', label: 'Estoque & Lotes OPME', icon: Package, gradient: 'from-violet-500 to-purple-700', shadow: 'shadow-violet-500/20' },
     { id: 'vendas', label: 'Vendas & Comissões', icon: TrendingUp, gradient: 'from-green-500 to-emerald-600', shadow: 'shadow-green-500/20' },

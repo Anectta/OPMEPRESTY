@@ -31,7 +31,6 @@ type RolePermissionsMap = Record<string, Record<string, OperationalPermission>>;
 const DEFAULT_OPERATIONAL_MODULES = [
   'Dashboard Executivo',
   'Mapa Cirúrgico',
-  'Mapa de Calor Operacional',
   'Protocolos & Cotação OPME',
   'Estoque & Lotes Consignados',
   'Vendas & Comissões',

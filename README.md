@@ -15,8 +15,7 @@ ERP vertical de alta performance para distribuidores de **OPME** (Órteses, Pró
 
 1. **Visão Executiva (Dashboard):** KPIs financeiros em tempo real, faturamento consumido, margens operacionais e metas de vendas.
 2. **Mapa Cirúrgico:** Agendamento cirúrgico centralizado com filtros por hospital, convênio, médico cirurgião, status e liberação de equipamento.
-3. **Mapa de Calor Operacional:** Monitoramento de conflitos logísticos e picos de demanda cirúrgica por horário e praça.
-4. **Protocolos & Cotação OPME:** Montagem ágil de orçamentos vinculados a códigos e registros da ANVISA com cálculo automático de valores.
+3. **Protocolos & Cotação OPME:** Montagem ágil de orçamentos vinculados a códigos e registros da ANVISA com cálculo automático de valores.
 5. **Estoque, Lotes & Rastreabilidade:**
    - Catálogo com saldos físicos em tempo real.
    - Monitoramento de lotes e cálculo dinâmico de vencimento ANVISA (Válido, Atenção < 90 dias, Bloqueado).
