@@ -3,9 +3,12 @@ import {
   Cirurgia,
   Protocolo,
   Produto,
+  ProdutoLote,
+  MovimentoEstoque,
   Venda,
   Veiculo,
   Condutor,
+  ChecklistFrota,
   Hospital,
   Medico,
   Convenio,
@@ -19,6 +22,7 @@ import {
   cirurgiasService,
   protocolosService,
   produtosService,
+  estoqueService,
   vendasService,
   frotaService,
 } from '../services/databaseService';
@@ -241,6 +245,76 @@ const INITIAL_CONDUTORES: Condutor[] = [
   { id: 'j1000000-0000-0000-0000-000000000002', nome: 'Marcos Vinícius', cpf: '888.333.222-11', cnh: '0987654321', categoria_cnh: 'D', validade_cnh: '2027-11-10', cargo: 'Motorista de Distribuição', departamento: 'Frota Pesada', status: 'Ativo' },
 ];
 
+const INITIAL_LOTES: ProdutoLote[] = [
+  { id: 'lot-1', produto_id: 'f1000000-0000-0000-0000-000000000001', lote: 'LT-2025-081', fabricacao: '2025-01-10', validade: '2028-01-10', quantidade: 10 },
+  { id: 'lot-2', produto_id: 'f1000000-0000-0000-0000-000000000001', lote: 'LT-2025-095', fabricacao: '2025-03-15', validade: '2028-03-15', quantidade: 8 },
+  { id: 'lot-3', produto_id: 'f1000000-0000-0000-0000-000000000002', lote: 'LT-2024-441', fabricacao: '2024-06-20', validade: '2027-06-20', quantidade: 8 },
+  { id: 'lot-4', produto_id: 'f1000000-0000-0000-0000-000000000003', lote: 'LT-2025-112', fabricacao: '2025-02-01', validade: '2028-02-01', quantidade: 12 },
+];
+
+const INITIAL_MOVIMENTOS: MovimentoEstoque[] = [
+  {
+    id: 'mov-1',
+    produto_id: 'f1000000-0000-0000-0000-000000000001',
+    produto_codigo: 'OPME-COL-001',
+    produto_descricao: 'Gaiola Cervical PEEK 12x14mm',
+    lote: 'LT-2025-081',
+    tipo: 'entrada',
+    quantidade: 10,
+    origem: 'Nota Fiscal NF-8812 - Medtronic Spine',
+    destino: 'Almoxarifado Central OPME',
+    user_email: 'estoque@prestymedick.com.br',
+    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+  },
+  {
+    id: 'mov-2',
+    produto_id: 'f1000000-0000-0000-0000-000000000001',
+    produto_codigo: 'OPME-COL-001',
+    produto_descricao: 'Gaiola Cervical PEEK 12x14mm',
+    lote: 'LT-2025-081',
+    tipo: 'saida',
+    quantidade: 2,
+    origem: 'Almoxarifado Central OPME',
+    destino: 'Hospital Israelita Albert Einstein',
+    hospital_nome: 'Hospital Israelita Albert Einstein',
+    medico_nome: 'Dr. Roberto Silva Mendes',
+    paciente_nome: 'Maria das Graças Oliveira',
+    protocolo_numero: 'PROT-2026-0082',
+    user_email: 'logistica@prestymedick.com.br',
+    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+  },
+  {
+    id: 'mov-3',
+    produto_id: 'f1000000-0000-0000-0000-000000000002',
+    produto_codigo: 'OPME-QUAD-010',
+    produto_descricao: 'Haste Femoral Modular Ti 12mm',
+    lote: 'LT-2024-441',
+    tipo: 'entrada',
+    quantidade: 8,
+    origem: 'Importação Zimmer Biomet - DI 26/00192',
+    destino: 'Almoxarifado Central OPME',
+    user_email: 'estoque@prestymedick.com.br',
+    created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
+  },
+];
+
+const INITIAL_CHECKLISTS: ChecklistFrota[] = [
+  {
+    id: 'chk-1',
+    veiculo_placa: 'OPM-8E29',
+    condutor_nome: 'Sérgio Ramos',
+    tipo: 'Saída',
+    data: new Date(Date.now() - 3600000 * 4).toISOString(),
+    km: 24850,
+    pontos_vistorias: [
+      { ponto_id: 1, nome: 'Pára-choque Dianteiro', vista: 'Frente', status: 'ok' },
+      { ponto_id: 2, nome: 'Farol Dianteiro Esquerdo', vista: 'Frente', status: 'ok' },
+      { ponto_id: 3, nome: 'Farol Dianteiro Direito', vista: 'Frente', status: 'ok' },
+    ],
+    tem_avaria: false,
+  },
+];
+
 export function useData() {
   const [hospitais, setHospitais] = useState<Hospital[]>(() => {
     const s = localStorage.getItem('presty_hospitais');
@@ -292,6 +366,21 @@ export function useData() {
     return s ? JSON.parse(s) : INITIAL_CONDUTORES;
   });
 
+  const [lotes, setLotes] = useState<ProdutoLote[]>(() => {
+    const s = localStorage.getItem('presty_lotes');
+    return s ? JSON.parse(s) : INITIAL_LOTES;
+  });
+
+  const [movimentos, setMovimentos] = useState<MovimentoEstoque[]>(() => {
+    const s = localStorage.getItem('presty_movimentos');
+    return s ? JSON.parse(s) : INITIAL_MOVIMENTOS;
+  });
+
+  const [checklists, setChecklists] = useState<ChecklistFrota[]>(() => {
+    const s = localStorage.getItem('presty_checklists');
+    return s ? JSON.parse(s) : INITIAL_CHECKLISTS;
+  });
+
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
 
@@ -312,6 +401,9 @@ export function useData() {
         vdaData,
         veicData,
         condData,
+        loteData,
+        movData,
+        chkData,
       ] = await Promise.allSettled([
         hospitaisService.getAll(),
         medicosService.getAll(),
@@ -323,6 +415,9 @@ export function useData() {
         vendasService.getAll(),
         frotaService.getVeiculos(),
         frotaService.getCondutores(),
+        estoqueService.getLotes(),
+        estoqueService.getMovimentos(),
+        frotaService.getChecklists(),
       ]);
 
       if (hospData.status === 'fulfilled' && hospData.value.length > 0) setHospitais(hospData.value);
@@ -335,6 +430,9 @@ export function useData() {
       if (vdaData.status === 'fulfilled' && vdaData.value.length > 0) setVendas(vdaData.value);
       if (veicData.status === 'fulfilled' && veicData.value.length > 0) setVeiculos(veicData.value);
       if (condData.status === 'fulfilled' && condData.value.length > 0) setCondutores(condData.value);
+      if (loteData.status === 'fulfilled' && loteData.value.length > 0) setLotes(loteData.value);
+      if (movData.status === 'fulfilled' && movData.value.length > 0) setMovimentos(movData.value);
+      if (chkData.status === 'fulfilled' && chkData.value.length > 0) setChecklists(chkData.value);
     } catch (err) {
       console.warn('Sincronização com Supabase utilizou fallback:', err);
     } finally {
@@ -357,6 +455,9 @@ export function useData() {
   useEffect(() => { localStorage.setItem('presty_vendas', JSON.stringify(vendas)); }, [vendas]);
   useEffect(() => { localStorage.setItem('presty_veiculos', JSON.stringify(veiculos)); }, [veiculos]);
   useEffect(() => { localStorage.setItem('presty_condutores', JSON.stringify(condutores)); }, [condutores]);
+  useEffect(() => { localStorage.setItem('presty_lotes', JSON.stringify(lotes)); }, [lotes]);
+  useEffect(() => { localStorage.setItem('presty_movimentos', JSON.stringify(movimentos)); }, [movimentos]);
+  useEffect(() => { localStorage.setItem('presty_checklists', JSON.stringify(checklists)); }, [checklists]);
 
   // ==================== CIRURGIAS ====================
   const addCirurgia = async (c: Omit<Cirurgia, 'id' | 'created_at'>) => {
@@ -693,6 +794,127 @@ export function useData() {
     }
   };
 
+  // ==================== MOVIMENTAÇÕES DE ESTOQUE ====================
+  const addMovimento = async (m: Omit<MovimentoEstoque, 'id' | 'created_at'>) => {
+    setIsCloudSyncing(true);
+    let created: MovimentoEstoque = {
+      ...m,
+      id: `mov-${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await estoqueService.createMovimento(m);
+      } catch (err) {
+        console.warn('Erro ao salvar movimento no Supabase:', err);
+      }
+    }
+
+    setMovimentos((prev) => [created, ...prev]);
+
+    // Atualização otimista do saldo em produtos local
+    if (m.produto_id) {
+      const isEntrada = m.tipo === 'entrada' || m.tipo === 'devolucao';
+      const fator = isEntrada ? 1 : -1;
+      setProdutos((prev) =>
+        prev.map((p) =>
+          p.id === m.produto_id
+            ? { ...p, saldo_total: Math.max(0, p.saldo_total + m.quantidade * fator) }
+            : p
+        )
+      );
+    }
+
+    setIsCloudSyncing(false);
+    return created;
+  };
+
+  const addLote = async (l: Omit<ProdutoLote, 'id'>) => {
+    setIsCloudSyncing(true);
+    let created: ProdutoLote = {
+      ...l,
+      id: `lot-${Date.now()}`,
+    };
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await estoqueService.createLote(l);
+      } catch (err) {
+        console.warn('Erro ao salvar lote no Supabase:', err);
+      }
+    }
+
+    setLotes((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
+  };
+
+  // ==================== CHECKLISTS / VISTORIAS FROTA ====================
+  const addChecklist = async (c: Omit<ChecklistFrota, 'id'>) => {
+    setIsCloudSyncing(true);
+    let created: ChecklistFrota = {
+      ...c,
+      id: `chk-${Date.now()}`,
+    };
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await frotaService.saveChecklist(c);
+      } catch (err) {
+        console.warn('Erro ao salvar checklist no Supabase:', err);
+      }
+    }
+
+    setChecklists((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
+  };
+
+  // ==================== VENDAS & FATURAMENTO ====================
+  const addVenda = async (v: Omit<Venda, 'id' | 'created_at'>) => {
+    setIsCloudSyncing(true);
+    let created: Venda = {
+      ...v,
+      id: `vda-${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        created = await vendasService.create(v);
+      } catch (err) {
+        console.warn('Erro ao salvar venda no Supabase:', err);
+      }
+    }
+
+    setVendas((prev) => [created, ...prev]);
+    setIsCloudSyncing(false);
+    return created;
+  };
+
+  const updateVenda = async (id: string, updates: Partial<Venda>) => {
+    setVendas((prev) => prev.map((v) => (v.id === id ? { ...v, ...updates } : v)));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await vendasService.update(id, updates);
+      } catch (err) {
+        console.warn('Erro ao atualizar venda no Supabase:', err);
+      }
+    }
+  };
+
+  const deleteVenda = async (id: string) => {
+    setVendas((prev) => prev.filter((v) => v.id !== id));
+    if (IS_SUPABASE_CONFIGURED) {
+      try {
+        await vendasService.delete(id);
+      } catch (err) {
+        console.warn('Erro ao excluir venda no Supabase:', err);
+      }
+    }
+  };
+
   return {
     hospitais,
     medicos,
@@ -704,6 +926,9 @@ export function useData() {
     vendas,
     veiculos,
     condutores,
+    lotes,
+    movimentos,
+    checklists,
     isLoadingData,
     isCloudSyncing,
     refreshData: loadAllDataFromSupabase,
@@ -711,12 +936,18 @@ export function useData() {
     updateCirurgia,
     addProtocolo,
     addProduto,
+    addMovimento,
+    addLote,
+    addVenda,
+    updateVenda,
+    deleteVenda,
     addVeiculo,
     updateVeiculo,
     deleteVeiculo,
     addCondutor,
     updateCondutor,
     deleteCondutor,
+    addChecklist,
     addHospital,
     updateHospital,
     deleteHospital,

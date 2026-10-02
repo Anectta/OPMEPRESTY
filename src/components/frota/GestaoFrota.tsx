@@ -6,12 +6,22 @@ import { Veiculo, Condutor, VistoriaPonto } from '../../types';
 import { Truck, Users, Camera, ShieldCheck, AlertTriangle, Plus, Search, CheckCircle2, Edit2, Trash2, X, FileSpreadsheet } from 'lucide-react';
 
 export const GestaoFrota: React.FC = () => {
-  const { veiculos, condutores, addVeiculo, updateVeiculo, deleteVeiculo, addCondutor, updateCondutor, deleteCondutor } = useData();
+  const {
+    veiculos,
+    condutores,
+    checklists,
+    addVeiculo,
+    updateVeiculo,
+    deleteVeiculo,
+    addCondutor,
+    updateCondutor,
+    deleteCondutor,
+    addChecklist,
+  } = useData();
   const { logAuditEvent } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'veiculos' | 'condutores' | 'checklists'>('veiculos');
   const [selectedVeiculoForChecklist, setSelectedVeiculoForChecklist] = useState<Veiculo | null>(null);
-  const [checklistsHistory, setChecklistsHistory] = useState<any[]>([]);
 
   // Vehicle Modal State
   const [isVeiculoModalOpen, setIsVeiculoModalOpen] = useState(false);
@@ -162,21 +172,28 @@ export const GestaoFrota: React.FC = () => {
     }
   };
 
-  const handleCompleteVistoria = (pontos: VistoriaPonto[], temAvaria: boolean) => {
+  const handleCompleteVistoria = async (pontos: VistoriaPonto[], temAvaria: boolean) => {
     if (!selectedVeiculoForChecklist) return;
 
-    const newRecord = {
-      id: `chk-${Date.now()}`,
+    const avariasCount = pontos.filter((p) => p.status === 'avaria').length;
+
+    await addChecklist({
       veiculo_placa: selectedVeiculoForChecklist.placa,
       condutor_nome: selectedVeiculoForChecklist.responsavel_nome,
+      tipo: 'Saída',
       data: new Date().toISOString(),
+      km: selectedVeiculoForChecklist.km_atual,
+      pontos_vistorias: pontos,
       tem_avaria: temAvaria,
-      pontos_count: pontos.length,
-      avarias_count: pontos.filter((p) => p.status === 'avaria').length,
-    };
+    });
 
-    setChecklistsHistory((prev) => [newRecord, ...prev]);
-    logAuditEvent('VISTORIA_FROTA_CONCLUIDA', 'Frota', selectedVeiculoForChecklist.placa, { tem_avaria: temAvaria, avarias: newRecord.avarias_count }, temAvaria ? 'high' : 'low');
+    logAuditEvent(
+      'VISTORIA_FROTA_CONCLUIDA',
+      'Frota',
+      selectedVeiculoForChecklist.placa,
+      { tem_avaria: temAvaria, avarias: avariasCount },
+      temAvaria ? 'high' : 'low'
+    );
     setSelectedVeiculoForChecklist(null);
   };
 
@@ -263,7 +280,7 @@ export const GestaoFrota: React.FC = () => {
             activeTab === 'checklists' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
           }`}
         >
-          Histórico de Vistorias ({checklistsHistory.length})
+          Histórico de Vistorias ({checklists.length})
         </button>
       </div>
 
@@ -369,25 +386,38 @@ export const GestaoFrota: React.FC = () => {
       {/* History Tab */}
       {activeTab === 'checklists' && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-3">
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white">Registro de Vistorias Realizadas</h2>
-          {checklistsHistory.length === 0 ? (
-            <p className="text-xs text-slate-400 p-4 text-center font-medium">Nenhuma vistoria realizada nesta sessão.</p>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              Registro de Vistorias Fotográficas Realizadas ({checklists.length})
+            </h2>
+            <span className="text-[10px] text-slate-400 font-mono">24 Pontos Auditados por Veículo</span>
+          </div>
+          {checklists.length === 0 ? (
+            <p className="text-xs text-slate-400 p-4 text-center font-medium">Nenhuma vistoria realizada no sistema.</p>
           ) : (
             <div className="space-y-2">
-              {checklistsHistory.map((chk) => (
-                <div key={chk.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-xs flex items-center justify-between">
-                  <div>
-                    <span className="font-mono font-black text-slate-900 dark:text-white">{chk.veiculo_placa}</span>
-                    <p className="text-slate-400">Condutor: {chk.condutor_nome}</p>
+              {checklists.map((chk) => {
+                const avarias = chk.pontos_vistorias?.filter((p) => p.status === 'avaria')?.length || 0;
+                return (
+                  <div key={chk.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-xs flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-black text-slate-900 dark:text-white">{chk.veiculo_placa}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-bold">
+                          {chk.tipo || 'Saída'}
+                        </span>
+                      </div>
+                      <p className="text-slate-400 mt-0.5">Condutor: {chk.condutor_nome} • KM: {chk.km}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-extrabold ${chk.tem_avaria ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                        {chk.tem_avaria ? `${avarias} Avaria(s) Detectada(s)` : 'Sem Avarias (100% Conforme)'}
+                      </span>
+                      <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{new Date(chk.data).toLocaleString('pt-BR')}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className={`px-2.5 py-0.5 rounded text-[10px] font-extrabold ${chk.tem_avaria ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                      {chk.tem_avaria ? `${chk.avarias_count} Avaria(s)` : 'Sem Avarias (100% OK)'}
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{new Date(chk.data).toLocaleString('pt-BR')}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

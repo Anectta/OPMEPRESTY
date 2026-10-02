@@ -7,6 +7,8 @@ import {
   Cirurgia,
   Protocolo,
   Produto,
+  ProdutoLote,
+  MovimentoEstoque,
   Venda,
   Veiculo,
   Condutor,
@@ -390,6 +392,88 @@ export const produtosService = {
 };
 
 // =====================================================================
+// ESTOQUE: LOTES & MOVIMENTAÇÕES SERVICE
+// =====================================================================
+export const estoqueService = {
+  async getMovimentos(): Promise<MovimentoEstoque[]> {
+    const { data, error } = await supabase
+      .from('estoque_movimentos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data as MovimentoEstoque[]) || [];
+  },
+
+  async createMovimento(m: Omit<MovimentoEstoque, 'id' | 'created_at'>): Promise<MovimentoEstoque> {
+    const { data, error } = await supabase
+      .from('estoque_movimentos')
+      .insert({
+        produto_id: m.produto_id,
+        produto_codigo: m.produto_codigo,
+        produto_descricao: m.produto_descricao,
+        lote: m.lote,
+        numero_serie: m.numero_serie,
+        tipo: m.tipo,
+        quantidade: m.quantidade,
+        origem: m.origem,
+        destino: m.destino,
+        hospital_nome: m.hospital_nome,
+        medico_nome: m.medico_nome,
+        paciente_nome: m.paciente_nome,
+        protocolo_numero: m.protocolo_numero,
+        user_email: m.user_email || 'sistema@prestymedick.com.br',
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Atualiza o saldo do produto correspondente
+    if (m.produto_id) {
+      const isEntrada = m.tipo === 'entrada' || m.tipo === 'devolucao';
+      const fator = isEntrada ? 1 : -1;
+      const { data: prod } = await supabase
+        .from('produtos')
+        .select('saldo_total')
+        .eq('id', m.produto_id)
+        .single();
+
+      if (prod) {
+        const novoSaldo = Math.max(0, (prod.saldo_total || 0) + (m.quantidade * fator));
+        await supabase
+          .from('produtos')
+          .update({ saldo_total: novoSaldo })
+          .eq('id', m.produto_id);
+      }
+    }
+
+    return data as MovimentoEstoque;
+  },
+
+  async getLotes(): Promise<ProdutoLote[]> {
+    const { data, error } = await supabase
+      .from('produto_lotes')
+      .select('*')
+      .order('validade', { ascending: true });
+
+    if (error) throw error;
+    return (data as ProdutoLote[]) || [];
+  },
+
+  async createLote(l: Omit<ProdutoLote, 'id'>): Promise<ProdutoLote> {
+    const { data, error } = await supabase
+      .from('produto_lotes')
+      .insert(l)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as ProdutoLote;
+  },
+};
+
+// =====================================================================
 // VENDAS SERVICE
 // =====================================================================
 export const vendasService = {
@@ -412,6 +496,23 @@ export const vendasService = {
 
     if (error) throw error;
     return data as Venda;
+  },
+
+  async update(id: string, updates: Partial<Venda>): Promise<Venda> {
+    const { data, error } = await supabase
+      .from('vendas')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Venda;
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase.from('vendas').delete().eq('id', id);
+    if (error) throw error;
   },
 };
 
@@ -493,6 +594,16 @@ export const frotaService = {
   async deleteCondutor(id: string): Promise<void> {
     const { error } = await supabase.from('condutores').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  async getChecklists(): Promise<ChecklistFrota[]> {
+    const { data, error } = await supabase
+      .from('checklists')
+      .select('*')
+      .order('data', { ascending: false });
+
+    if (error) throw error;
+    return (data as ChecklistFrota[]) || [];
   },
 
   async saveChecklist(c: Omit<ChecklistFrota, 'id'>): Promise<ChecklistFrota> {
