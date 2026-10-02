@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './lib/auth-context';
 import { LoginScreen } from './components/LoginScreen';
 import { AppLayout } from './components/AppLayout';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 import { ExecutiveDashboard } from './components/dashboard/ExecutiveDashboard';
 import { MapaCirurgico } from './components/mapa/MapaCirurgico';
@@ -34,16 +36,37 @@ const MainApp: React.FC = () => {
       {activeTab === 'frota' && <GestaoFrota />}
       {activeTab === 'cadastros' && <CadastrosAuxiliares />}
       {activeTab === 'relatorios' && <RelatoriosPDF />}
-      {activeTab === 'usuarios' && <GestaoUsuarios />}
-      {activeTab === 'auditoria' && <AuditLogsView />}
+      
+      {/* Rotas Administrativas Blindadas com RBAC */}
+      {activeTab === 'usuarios' && (
+        <ProtectedRoute
+          allowedRoles={['admin']}
+          routeName="Gestão de Usuários e Perfis"
+          onRedirectToDashboard={() => setActiveTab('dashboard')}
+        >
+          <GestaoUsuarios />
+        </ProtectedRoute>
+      )}
+
+      {activeTab === 'auditoria' && (
+        <ProtectedRoute
+          allowedRoles={['admin']}
+          routeName="Trilha de Auditoria e Logs de Segurança"
+          onRedirectToDashboard={() => setActiveTab('dashboard')}
+        >
+          <AuditLogsView />
+        </ProtectedRoute>
+      )}
     </AppLayout>
   );
 };
 
 export default function App() {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <MainApp />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

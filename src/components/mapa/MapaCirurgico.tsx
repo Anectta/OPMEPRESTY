@@ -1172,7 +1172,7 @@ export const MapaCirurgico: React.FC<Props> = ({ initialTab = 'overview' }) => {
                     </span>
                   </div>
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{v.modelo} ({v.ano})</p>
-                  <p className="text-[11px] text-slate-400">Condutor habitual: {v.motorista_habitual || 'Escala Rotativa'}</p>
+                  <p className="text-[11px] text-slate-400">Condutor habitual: {v.responsavel_nome || 'Escala Rotativa'}</p>
                 </div>
               ))}
             </div>

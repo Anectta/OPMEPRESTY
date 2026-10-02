@@ -67,3 +67,39 @@ export function getStatusBadge(status: string): { bg: string; text: string; labe
 
   return { bg: 'bg-blue-100 dark:bg-blue-950/60 border-blue-300 dark:border-blue-800', text: 'text-blue-800 dark:text-blue-300', label: status };
 }
+
+/**
+ * Mascaramento de CPF em conformidade com a LGPD (Lei Geral de Proteção de Dados)
+ * Exemplo: 123.456.789-00 -> 123.***.***-00
+ */
+export function maskCPF(cpf: string | undefined | null): string {
+  if (!cpf) return '-';
+  const clean = cpf.replace(/\D/g, '');
+  if (clean.length !== 11) return cpf;
+  return `${clean.slice(0, 3)}.***.***-${clean.slice(9, 11)}`;
+}
+
+/**
+ * Mascaramento de E-mail para exibição segura em auditorias
+ */
+export function maskEmail(email: string | undefined | null): string {
+  if (!email) return '-';
+  const parts = email.split('@');
+  if (parts.length !== 2) return email;
+  const name = parts[0];
+  const maskedName = name.length > 2 ? `${name[0]}***${name[name.length - 1]}` : '***';
+  return `${maskedName}@${parts[1]}`;
+}
+
+/**
+ * Higienização de strings contra ataques XSS (Cross-Site Scripting)
+ */
+export function sanitizeHTML(dirty: string): string {
+  // Substitui caracteres perigosos caso DOMPurify não esteja ativo no contexto
+  return dirty
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}

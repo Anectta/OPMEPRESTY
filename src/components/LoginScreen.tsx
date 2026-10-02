@@ -9,8 +9,8 @@ export const LoginScreen: React.FC = () => {
   const { login, signup, isLoading, isSupabaseConnected } = useAuth();
   
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [email, setEmail] = useState('admin@prestymedick.com.br');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [nome, setNome] = useState('');
   const [selectedRole, setSelectedRole] = useState<AppRole>('admin');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
