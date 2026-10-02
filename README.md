@@ -1,59 +1,117 @@
-# Presty Medick - ERP OPME
+# Presty Medick - ERP OPME (Plataforma Médica Cirúrgica)
 
-SaaS de gestão (ERP vertical) para distribuidoras de **OPME** (Órteses, Próteses e Materiais Especiais).
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-6.2-646CFF.svg)](https://vitejs.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20RLS-3ECF8E.svg)](https://supabase.com/)
+[![Vitest](https://img.shields.io/badge/Vitest-21%20Tests%20Passed-FCC72B.svg)](https://vitest.dev/)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
 
-## 🚀 Módulos do Sistema
-- **Visão Executiva:** Dashboards gerenciais, faturamento, margens e KPIs operacionais.
-- **Mapa Cirúrgico:** Agendamento cirúrgico integrado por hospital, médico, paciente e convênio.
-- **Mapa de Calor Operacional:** Monitoramento de conflitos de equipamentos e volume cirúrgico.
-- **Protocolos & Cotação:** Cotações ágeis com vinculação direta a registros ANVISA.
-- **Estoque & Lotes OPME:** Rastreabilidade rigorosa por lote, número de série e kits consignados.
-- **Vendas & Comissões:** Pedidos faturados, apuração de consumo vs. devolução e comissionamento.
-- **Frota & Vistorias:** Gestão veicular e vistorias fotográficas em 24 pontos.
-- **Cadastros Auxiliares:** Hospitais, médicos, convênios, técnicos e representantes.
-- **Relatórios & BI:** Emissão de relatórios em PDF formatados para auditoria sanitária.
-- **Trilha de Auditoria:** Rastreabilidade e logs de ações críticas de usuários.
+ERP vertical de alta performance para distribuidores de **OPME** (Órteses, Próteses e Materiais Especiais), em conformidade com as diretrizes da **ANVISA (RDC 751/2022)** e **LGPD**.
 
 ---
 
-## 🛠️ Stack Tecnológica
-- **Frontend:** React 19, TypeScript, Vite 6, Tailwind CSS v4, Lucide React, Recharts, jsPDF
-- **Backend / Database:** Supabase (PostgreSQL com Row Level Security)
+## 🌟 Módulos da Plataforma
+
+1. **Visão Executiva (Dashboard):** KPIs financeiros em tempo real, faturamento consumido, margens operacionais e metas de vendas.
+2. **Mapa Cirúrgico:** Agendamento cirúrgico centralizado com filtros por hospital, convênio, médico cirurgião, status e liberação de equipamento.
+3. **Mapa de Calor Operacional:** Monitoramento de conflitos logísticos e picos de demanda cirúrgica por horário e praça.
+4. **Protocolos & Cotação OPME:** Montagem ágil de orçamentos vinculados a códigos e registros da ANVISA com cálculo automático de valores.
+5. **Estoque, Lotes & Rastreabilidade:**
+   - Catálogo com saldos físicos em tempo real.
+   - Monitoramento de lotes e cálculo dinâmico de vencimento ANVISA (Válido, Atenção < 90 dias, Bloqueado).
+   - Histórico de movimentações (Entradas por NF, Saídas cirúrgicas, Devoluções de consignados).
+   - Linha do tempo visual de rastreabilidade ponta-a-ponta (Fabricação ➔ Estoque ➔ Logística ➔ Cirurgia/Paciente).
+6. **Vendas & Faturamento:**
+   - Faturamento de cirurgias em 1 clique com geração de número de pedido e espelho de fatura.
+   - Apuração de consumo real x sobras devolvidas e margens de contribuição.
+   - Apuração automática de comissões para representantes comerciais.
+7. **Frota & Vistoria Fotográfica:**
+   - Gestão de veículos utilitários e condutores credenciados.
+   - Vistoria veicular guiada em **24 pontos** com registro fotográfico e checklist de avarias persistido no banco.
+8. **Cadastros Auxiliares:** Hospitais parceiros, médicos cirurgiões (CRM/UF), operadoras de convênio, vendedores e técnicos instrumentadores.
+9. **Relatórios & BI:** Emissão de relatórios em PDF formatados para auditoria hospitalar e sanitária.
+10. **Gestão de Usuários (RBAC):** Controle de acessos por papel (`admin`, `comercial`, `estoque`, `gestor_frota`, `motorista`, `supervisor`, `financeiro`).
+11. **Trilha de Auditoria (Audit Logs):** Log imutável de todas as ações sensíveis com categorização por severidade (`low`, `medium`, `high`, `critical`).
 
 ---
 
-## 💻 Como Executar Localmente
+## 🏗️ Arquitetura Tecnológica
+
+* **Frontend:** React 19, TypeScript 5.8, Vite 6, Tailwind CSS v4, Lucide React, Recharts, jsPDF, html2canvas, DOMPurify.
+* **Segurança:**
+  - `ProtectedRoute`: Barreira de proteção de rotas com RBAC estrito.
+  - `ErrorBoundary`: Resiliência contra exceções não tratadas no DOM.
+  - Mascaramento de CPF (`maskCPF`) e E-mail (`maskEmail`) para conformidade LGPD.
+  - Sanitização de strings (`sanitizeHTML`) contra ataques XSS.
+* **Performance:**
+  - Code-splitting dinâmico com `React.lazy` e `Suspense`.
+  - Chunking inteligente no Vite (`vendor-pdf`, `vendor-charts`, `vendor-supabase`, `vendor-icons`).
+  - Bundle inicial enxuto de apenas **286 kB** (84 kB gzip).
+* **Banco de Dados (Supabase PostgreSQL):**
+  - Row Level Security (RLS) habilitado em 100% das tabelas.
+  - Triggers automáticos para atualização de estoque físico (`mov_apply_saldo`).
+  - Trilha de auditoria persistida na tabela `public.audit_logs`.
+
+---
+
+## 🚀 Como Executar Localmente
 
 ### Pré-requisitos
-- Node.js (v18+)
-- npm (v9+)
+* Node.js (v18 ou superior)
+* npm (v9 ou superior)
 
-### Passo a Passo
+### 1. Clonar e Instalar
+```bash
+git clone https://github.com/Anectta/OPMEPRESTY.git
+cd OPMEPRESTY
+npm install
+```
 
-1. **Instalar dependências:**
-   ```bash
-   npm install
-   ```
+### 2. Configurar Variáveis de Ambiente
+Copie o arquivo de exemplo:
+```bash
+cp .env.example .env
+```
+Preencha as credenciais do seu projeto Supabase:
+```env
+VITE_SUPABASE_URL="https://seu-projeto.supabase.co"
+VITE_SUPABASE_ANON_KEY="sua-chave-anon-publica-aqui"
+```
 
-2. **Configurar variáveis de ambiente:**
-   Copie `.env.example` para `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-   Defina suas chaves do Supabase:
-   ```env
-   VITE_SUPABASE_URL="https://seu-projeto.supabase.co"
-   VITE_SUPABASE_ANON_KEY="sua-chave-anon-publica"
-   ```
+### 3. Executar o Servidor de Desenvolvimento
+```bash
+npm run dev
+```
+Acesse a aplicação em `http://localhost:3000`.
 
-3. **Executar em desenvolvimento:**
-   ```bash
-   npm run dev
-   ```
-   Acesse: `http://localhost:3000`
+---
 
-4. **Verificar tipagem e build:**
-   ```bash
-   npm run lint
-   npm run build
-   ```
+## 🧪 Testes Automatizados e Qualidade
+
+O projeto possui suíte completa de testes unitários com **Vitest**:
+
+```bash
+# Executar todos os testes unitários
+npm test
+
+# Executar checagem estática de tipagem TypeScript
+npm run lint
+
+# Executar compilação otimizada de produção
+npm run build
+```
+
+---
+
+## 📖 Documentação de Produção
+
+* [Guia de Deploy (DEPLOY.md)](DEPLOY.md) — Instruções detalhadas para deploy na Vercel, Netlify ou Docker.
+* [Checklist de Prontidão (docs/CHECKLIST_PRODUCAO.md)](docs/CHECKLIST_PRODUCAO.md) — Matriz de auditoria dos 20 critérios do Prompt Mestre Universal.
+* [Esquema do Banco de Dados (schema.sql)](src/lib/supabase/schema.sql) — DDL PostgreSQL completo com RLS, gatilhos e dados de seed.
+
+---
+
+## 🔒 Segurança e Responsabilidade
+
+Todas as operações cirúrgicas e dados de pacientes manipulados na plataforma devem seguir as regulamentações vigentes do Conselho Federal de Medicina (CFM), ANVISA e LGPD. O acesso aos módulos de governança e auditoria é restrito aos administradores credenciados da instituição.
