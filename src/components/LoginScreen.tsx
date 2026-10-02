@@ -9,8 +9,8 @@ export const LoginScreen: React.FC = () => {
   const { login, signup, isLoading, isSupabaseConnected } = useAuth();
   
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('anectta@anectta.com.br');
+  const [password, setPassword] = useState('Ant102030!#');
   const [nome, setNome] = useState('');
   const [selectedRole, setSelectedRole] = useState<AppRole>('admin');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -64,17 +64,13 @@ export const LoginScreen: React.FC = () => {
   };
 
   const demoRoles: { role: AppRole; title: string; email: string; desc: string }[] = [
-    { role: 'admin', title: 'Administrador Geral', email: 'admin@prestymedick.com.br', desc: 'Acesso total a relatórios, auditoria e usuários' },
-    { role: 'comercial', title: 'Representante Comercial', email: 'vendedor@prestymedick.com.br', desc: 'Mapa cirúrgico, cotações OPME e metas' },
-    { role: 'estoque', title: 'Gestor de Estoque OPME', email: 'estoque@prestymedick.com.br', desc: 'Lotes, séries, consignação e rastreabilidade' },
-    { role: 'gestor_frota', title: 'Gestor de Frota', email: 'frota@prestymedick.com.br', desc: 'Veículos, abastecimentos e vistoria fotográfica' },
-    { role: 'motorista', title: 'Entregador / Motorista', email: 'motorista@prestymedick.com.br', desc: 'Acesso às vistorias e checklists de saída/retorno' },
+    { role: 'admin', title: 'Administrador Master', email: 'anectta@anectta.com.br', desc: 'Acesso total corporativo e administrativo ao ERP' },
   ];
 
   const applyDemoRole = (roleItem: (typeof demoRoles)[0]) => {
     setEmail(roleItem.email);
     setSelectedRole(roleItem.role);
-    setPassword('123456');
+    setPassword('Ant102030!#');
     setErrorMsg(null);
   };
 

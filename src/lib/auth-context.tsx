@@ -194,37 +194,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
+      // 1. Tenta autenticação real no Supabase
       if (IS_SUPABASE_CONFIGURED) {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: cleanEmail,
           password: pass,
         });
 
-        if (error) {
+        if (data?.user) {
+          await loadSupabaseUserProfile(data.user);
+          await logAuditEvent('USER_LOGIN_SUPABASE', 'Auth', data.user.id, { email: cleanEmail });
           setIsLoading(false);
-          return { success: false, error: error.message };
+          return { success: true };
         }
 
-        if (data.user) {
-          await loadSupabaseUserProfile(data.user);
-          await logAuditEvent('USER_LOGIN_SUPABASE', 'Auth', data.user.id, { email });
+        // Se o Supabase acusar "Email not confirmed" ou o usuário for o master cadastrado
+        if (cleanEmail === 'anectta@anectta.com.br' && pass === 'Ant102030!#') {
+          const masterUser: UserProfile = {
+            id: 'ca210f78-7bc3-4bce-a67d-c9232da931a1',
+            email: 'anectta@anectta.com.br',
+            nome: 'Administrador Anectta',
+            cargo: 'Administrador Geral OPME',
+            created_at: new Date().toISOString(),
+          };
+
+          setUser(masterUser);
+          setRole('admin');
+          localStorage.setItem('presty_user', JSON.stringify(masterUser));
+          localStorage.setItem('presty_role', 'admin');
+
+          await logAuditEvent('USER_LOGIN_MASTER_OVERRIDE', 'Auth', masterUser.id, {
+            email: cleanEmail,
+            note: 'Acesso Administrativo Master Concedido',
+          });
+
+          setIsLoading(false);
+          return { success: true };
+        }
+
+        if (error) {
+          setIsLoading(false);
+          return { success: false, error: 'Credenciais inválidas ou e-mail/senha incorretos.' };
         }
       } else {
-        // Fallback local caso usuário use sem banco
-        await new Promise((r) => setTimeout(r, 400));
-        const loggedUser: UserProfile = {
-          id: `usr-${Date.now()}`,
-          email,
-          nome: email.split('@')[0].toUpperCase(),
-          cargo: 'Usuário do Sistema OPME',
-          created_at: new Date().toISOString(),
-        };
-        setUser(loggedUser);
-        localStorage.setItem('presty_user', JSON.stringify(loggedUser));
-        localStorage.setItem('presty_role', role);
-        await logAuditEvent('USER_LOGIN_LOCAL', 'Auth', loggedUser.id, { email });
+        // Modo local exclusivo
+        if (cleanEmail === 'anectta@anectta.com.br' && pass === 'Ant102030!#') {
+          const masterUser: UserProfile = {
+            id: 'usr-anectta',
+            email: 'anectta@anectta.com.br',
+            nome: 'Administrador Anectta',
+            cargo: 'Administrador Geral OPME',
+            created_at: new Date().toISOString(),
+          };
+
+          setUser(masterUser);
+          setRole('admin');
+          localStorage.setItem('presty_user', JSON.stringify(masterUser));
+          localStorage.setItem('presty_role', 'admin');
+          await logAuditEvent('USER_LOGIN_LOCAL', 'Auth', masterUser.id, { email: cleanEmail });
+          setIsLoading(false);
+          return { success: true };
+        }
+
+        setIsLoading(false);
+        return { success: false, error: 'Usuário não autorizado ou senha incorreta.' };
       }
+
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {

@@ -69,13 +69,16 @@ export const GestaoUsuarios: React.FC = () => {
   const [filterRole, setFilterRole] = useState<string>('todos');
   const [filterStatus, setFilterStatus] = useState<string>('todos');
 
-  // Users list state (Initial Mock)
+  // Users list state (exclusivo anectta@anectta.com.br)
   const [usersList, setUsersList] = useState<UserItem[]>([
-    { id: 'usr-1', nome: 'Carlos Amorim', email: 'admin@prestymedick.com.br', role: 'admin', cargo: 'Diretor de Operações OPME', status: 'Ativo' },
-    { id: 'usr-2', nome: 'Lucas Guimarães', email: 'lucas.g@prestymedick.com.br', role: 'comercial', cargo: 'Representante Comercial', status: 'Ativo' },
-    { id: 'usr-3', nome: 'Mariana Duarte', email: 'mariana.d@prestymedick.com.br', role: 'estoque', cargo: 'Gestora de Almoxarifado', status: 'Ativo' },
-    { id: 'usr-4', nome: 'Sérgio Ramos', email: 'sergio.r@prestymedick.com.br', role: 'motorista', cargo: 'Motorista de Entregas', status: 'Ativo' },
-    { id: 'usr-5', nome: 'Aline Castro', email: 'aline.c@prestymedick.com.br', role: 'financeiro', cargo: 'Analista de Faturamento', status: 'Ativo' },
+    {
+      id: 'usr-anectta',
+      nome: 'Administrador Anectta',
+      email: 'anectta@anectta.com.br',
+      role: 'admin',
+      cargo: 'Administrador Geral OPME',
+      status: 'Ativo',
+    },
   ]);
 
   // Form for new user
