@@ -11,9 +11,6 @@ import { PageSkeleton } from './components/common/PageSkeleton';
 // Removidos: GestaoFrota, RelatoriosPDF (não previstos na V2.0)
 // =====================================================================
 
-const ExecutiveDashboard = React.lazy(() =>
-  import('./components/dashboard/ExecutiveDashboard').then((m) => ({ default: m.ExecutiveDashboard }))
-);
 const MapaCirurgico = React.lazy(() =>
   import('./components/mapa/MapaCirurgico').then((m) => ({ default: m.MapaCirurgico }))
 );
@@ -50,13 +47,12 @@ const ConfiguracoesSistema = React.lazy(() =>
 // =====================================================================
 const MainApp: React.FC = () => {
   const { isAuthenticated, logAuditEvent, user, role } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('mapa');
 
   // Registro de Auditoria: Toda navegação/acesso no sistema gera log
   useEffect(() => {
     if (isAuthenticated) {
       const labels: Record<string, string> = {
-        dashboard: 'Dashboard Executivo',
         torre: 'Torre de Controle',
         mapa: 'Mapa Cirúrgico',
         protocolos: 'Protocolo OPME',
@@ -93,7 +89,6 @@ const MainApp: React.FC = () => {
     <AppLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       <Suspense fallback={<PageSkeleton />}>
         {/* Módulos V2.0 — Especificação Mestre */}
-        {activeTab === 'dashboard' && <ExecutiveDashboard setActiveTab={setActiveTab} />}
         {activeTab === 'torre' && <TorreControle />}
         {activeTab === 'mapa' && <MapaCirurgico />}
         {activeTab === 'protocolos' && <ProtocolosOPME />}
@@ -107,7 +102,7 @@ const MainApp: React.FC = () => {
           <ProtectedRoute
             allowedRoles={['admin']}
             routeName="Gestão de Usuários e Permissões"
-            onRedirectToDashboard={() => setActiveTab('dashboard')}
+            onRedirectToDashboard={() => setActiveTab('mapa')}
           >
             <GestaoUsuarios />
           </ProtectedRoute>
@@ -117,7 +112,7 @@ const MainApp: React.FC = () => {
           <ProtectedRoute
             allowedRoles={['admin', 'auditor']}
             routeName="Trilha de Auditoria e Logs"
-            onRedirectToDashboard={() => setActiveTab('dashboard')}
+            onRedirectToDashboard={() => setActiveTab('mapa')}
           >
             <AuditLogsView />
           </ProtectedRoute>
@@ -127,7 +122,7 @@ const MainApp: React.FC = () => {
           <ProtectedRoute
             allowedRoles={['admin', 'gestor']}
             routeName="Configurações do Sistema"
-            onRedirectToDashboard={() => setActiveTab('dashboard')}
+            onRedirectToDashboard={() => setActiveTab('mapa')}
           >
             <ConfiguracoesSistema />
           </ProtectedRoute>

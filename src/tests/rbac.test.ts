@@ -26,12 +26,12 @@ describe('Controle de Acesso Baseado em Papéis (RBAC Policy Tests) — V2.0', (
       return ['admin', 'gestor', 'estoque', 'operador'].includes(role);
     }
 
-    // Dashboard, mapa, protocolos acessíveis a todos os perfis autenticados
+    // Mapa, protocolos acessíveis a todos os perfis autenticados
     return true;
   };
 
   it('permite acesso total ao perfil admin em todas as rotas', () => {
-    const routes = ['dashboard', 'mapa', 'protocolos', 'estoque', 'logistica', 'usuarios', 'auditoria'];
+    const routes = ['mapa', 'protocolos', 'estoque', 'logistica', 'usuarios', 'auditoria'];
     routes.forEach((route) => {
       expect(isRouteAllowed('admin', route)).toBe(true);
     });

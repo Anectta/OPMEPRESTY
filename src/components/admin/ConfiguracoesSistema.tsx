@@ -5,7 +5,6 @@ import { useData } from '../../hooks/useData';
 type ConfigTab = 'empresa' | 'parametros' | 'modulos' | 'dados';
 
 const MODULOS_SISTEMA = [
-  { id: 'dashboard', nome: 'Dashboard', descricao: 'Painel de indicadores operacionais' },
   { id: 'torre', nome: 'Torre de Controle', descricao: 'Monitoramento em tempo real das cirurgias' },
   { id: 'mapa', nome: 'Mapa Cirúrgico', descricao: 'Calendário e gestão das cirurgias' },
   { id: 'protocolo_opme', nome: 'Protocolo OPME', descricao: 'Registro e controle de protocolos' },

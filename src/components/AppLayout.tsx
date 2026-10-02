@@ -5,7 +5,6 @@ import { AppRole } from '../types';
 import { getActiveVendedor } from '../lib/vendedorHelper';
 import { SupabaseSetupModal } from './admin/SupabaseSetupModal';
 import {
-  Activity,
   Calendar,
   FileSpreadsheet,
   Package,
@@ -38,7 +37,6 @@ export const AppLayout: React.FC<Props> = ({ activeTab, setActiveTab, children }
 
   // Módulos V2.0 — conforme Especificação Mestre
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Activity, gradient: 'from-blue-600 to-indigo-600', shadow: 'shadow-blue-500/20' },
     { id: 'torre', label: 'Torre de Controle', icon: Radio, gradient: 'from-sky-400 to-blue-500', shadow: 'shadow-sky-500/20' },
     { id: 'mapa', label: 'Mapa Cirúrgico', icon: Calendar, gradient: 'from-teal-500 to-emerald-600', shadow: 'shadow-teal-500/20' },
     { id: 'protocolos', label: 'Protocolo OPME', icon: FileSpreadsheet, gradient: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/20' },
