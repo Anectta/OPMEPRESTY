@@ -8,7 +8,6 @@ const MODULOS_SISTEMA = [
   { id: 'mapa', nome: 'Mapa Cirúrgico', descricao: 'Calendário e gestão das cirurgias' },
   { id: 'protocolo_opme', nome: 'Protocolo OPME', descricao: 'Registro e controle de protocolos' },
   { id: 'autorizacao', nome: 'Autorizações', descricao: 'Gestão do processo de autorização do convênio' },
-  { id: 'estoque', nome: 'Estoque', descricao: 'Controle operacional de materiais e lotes' },
   { id: 'equipamentos', nome: 'Equipamentos', descricao: 'Controle individual por patrimônio/série' },
   { id: 'cadastros', nome: 'Cadastros', descricao: 'Hospitais, médicos, produtos e demais registros' },
   { id: 'auditoria', nome: 'Auditoria', descricao: 'Trilha de auditoria e logs do sistema' },

@@ -22,16 +22,13 @@ describe('Controle de Acesso Baseado em Papéis (RBAC Policy Tests) — V2.0', (
       return ['admin', 'gestor', 'logistica', 'motorista'].includes(role);
     }
 
-    if (routeId === 'estoque') {
-      return ['admin', 'gestor', 'estoque', 'operador'].includes(role);
-    }
 
     // Mapa, protocolos acessíveis a todos os perfis autenticados
     return true;
   };
 
   it('permite acesso total ao perfil admin em todas as rotas', () => {
-    const routes = ['mapa', 'protocolos', 'estoque', 'logistica', 'usuarios', 'auditoria'];
+    const routes = ['mapa', 'protocolos', 'logistica', 'usuarios', 'auditoria'];
     routes.forEach((route) => {
       expect(isRouteAllowed('admin', route)).toBe(true);
     });
@@ -52,15 +49,6 @@ describe('Controle de Acesso Baseado em Papéis (RBAC Policy Tests) — V2.0', (
     blocked.forEach((role) => {
       expect(isRouteAllowed(role, 'auditoria')).toBe(false);
     });
-  });
-
-  it('restringe o módulo de estoque a admins, gestores, operadores e estoque', () => {
-    expect(isRouteAllowed('estoque', 'estoque')).toBe(true);
-    expect(isRouteAllowed('admin', 'estoque')).toBe(true);
-    expect(isRouteAllowed('gestor', 'estoque')).toBe(true);
-    expect(isRouteAllowed('operador', 'estoque')).toBe(true);
-    expect(isRouteAllowed('motorista', 'estoque')).toBe(false);
-    expect(isRouteAllowed('vendedor', 'estoque')).toBe(false);
   });
 
   it('permite módulo de logística apenas para logística, motoristas, gestores e admins', () => {

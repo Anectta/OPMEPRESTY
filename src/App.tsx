@@ -20,9 +20,6 @@ const ProtocolosOPME = React.lazy(() =>
 const AutorizacoesOPME = React.lazy(() =>
   import('./components/autorizacoes/AutorizacoesOPME').then((m) => ({ default: m.AutorizacoesOPME }))
 );
-const GestaoEstoque = React.lazy(() =>
-  import('./components/estoque/GestaoEstoque').then((m) => ({ default: m.GestaoEstoque }))
-);
 const GestaoEquipamentos = React.lazy(() =>
   import('./components/equipamentos/GestaoEquipamentos').then((m) => ({ default: m.GestaoEquipamentos }))
 );
@@ -53,7 +50,6 @@ const MainApp: React.FC = () => {
         mapa: 'Mapa Cirúrgico',
         protocolos: 'Protocolo OPME',
         autorizacoes: 'Autorizações OPME',
-        estoque: 'Gestão de Estoque',
         equipamentos: 'Gestão de Equipamentos',
         cadastros: 'Cadastros Auxiliares',
         usuarios: 'Gestão de Usuários',
@@ -88,7 +84,6 @@ const MainApp: React.FC = () => {
         {activeTab === 'mapa' && <MapaCirurgico />}
         {activeTab === 'protocolos' && <ProtocolosOPME />}
         {activeTab === 'autorizacoes' && <AutorizacoesOPME />}
-        {activeTab === 'estoque' && <GestaoEstoque />}
         {activeTab === 'equipamentos' && <GestaoEquipamentos />}
         {activeTab === 'cadastros' && <CadastrosAuxiliares />}
 

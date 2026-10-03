@@ -7,7 +7,6 @@ import { SupabaseSetupModal } from './admin/SupabaseSetupModal';
 import {
   Calendar,
   FileSpreadsheet,
-  Package,
   Truck,
   Users,
   ShieldAlert,
@@ -39,7 +38,6 @@ export const AppLayout: React.FC<Props> = ({ activeTab, setActiveTab, children }
     { id: 'mapa', label: 'Mapa Cirúrgico', icon: Calendar, gradient: 'from-teal-500 to-emerald-600', shadow: 'shadow-teal-500/20' },
     { id: 'protocolos', label: 'Protocolo OPME', icon: FileSpreadsheet, gradient: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/20' },
     { id: 'autorizacoes', label: 'Autorizações', icon: CheckCircle2, gradient: 'from-green-500 to-emerald-700', shadow: 'shadow-green-500/20' },
-    { id: 'estoque', label: 'Estoque', icon: Package, gradient: 'from-violet-500 to-purple-700', shadow: 'shadow-violet-500/20' },
     { id: 'equipamentos', label: 'Equipamentos', icon: Zap, gradient: 'from-amber-500 to-orange-600', shadow: 'shadow-amber-500/20' },
     { id: 'cadastros', label: 'Cadastros', icon: Layers, gradient: 'from-slate-500 to-slate-700', shadow: 'shadow-slate-500/20' },
     { id: 'auditoria', label: 'Auditoria', icon: ShieldAlert, adminOnly: true, gradient: 'from-rose-500 to-red-700', shadow: 'shadow-rose-500/20' },

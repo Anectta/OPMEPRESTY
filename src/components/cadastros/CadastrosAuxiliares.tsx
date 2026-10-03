@@ -25,6 +25,10 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [pacienteSearch, setPacienteSearch] = useState('');
   const [procedimentoSearch, setProcedimentoSearch] = useState('');
   const [produtoSearch, setProdutoSearch] = useState('');
+  const [hospitalSearch, setHospitalSearch] = useState('');
+  const [medicoSearch, setMedicoSearch] = useState('');
+  const [convenioSearch, setConvenioSearch] = useState('');
+  const [vendedorSearch, setVendedorSearch] = useState('');
 
   // Forms
   const [hospitalForm, setHospitalForm] = useState({
@@ -532,13 +536,13 @@ export const CadastrosAuxiliares: React.FC = () => {
             {/* Search & Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
               <div className="relative w-full sm:w-72">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Buscar paciente por nome..."
                   value={pacienteSearch}
                   onChange={(e) => setPacienteSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                  className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none"
                 />
               </div>
               <span className="text-[11px] text-slate-400 font-medium">
@@ -546,10 +550,10 @@ export const CadastrosAuxiliares: React.FC = () => {
               </span>
             </div>
 
-            {/* List */}
+            {/* Table */}
             {pacientes.filter(p => p.nome.toLowerCase().includes(pacienteSearch.toLowerCase())).length === 0 ? (
               <div className="py-12 text-center text-slate-400 space-y-2">
-                <Users className="w-8 h-8 mx-auto opacity-40" />
+                <Users className="w-8 h-8 mx-auto opacity-40 text-blue-500" />
                 <p className="text-xs font-bold">Nenhum paciente encontrado</p>
                 <button
                   onClick={() => handleOpenPacienteModal()}
@@ -559,36 +563,65 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {pacientes
-                  .filter(p => p.nome.toLowerCase().includes(pacienteSearch.toLowerCase()))
-                  .map((p) => (
-                    <div key={p.id} className="p-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between text-xs relative group hover:border-blue-500/40 transition-colors">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs shrink-0">
-                          {p.nome.charAt(0).toUpperCase()}
-                        </div>
-                        <p className="font-extrabold text-slate-900 dark:text-white text-sm truncate">{p.nome}</p>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => handleOpenPacienteModal(p)}
-                          className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePaciente(p)}
-                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse text-[11px] min-w-[700px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
+                      <th className="p-2.5 pl-3">Registro / ID</th>
+                      <th className="p-2.5">Nome do Paciente</th>
+                      <th className="p-2.5">Tipo de Registro</th>
+                      <th className="p-2.5">Status Cadastral</th>
+                      <th className="p-2.5 text-right pr-3">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {pacientes
+                      .filter(p => p.nome.toLowerCase().includes(pacienteSearch.toLowerCase()))
+                      .map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-2.5 pl-3 font-mono">
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                              PAC-{p.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}
+                            </span>
+                            <p className="text-[9px] text-slate-400 font-medium">Registro Sistema</p>
+                          </td>
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900 dark:text-white uppercase line-clamp-1">{p.nome}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-1 uppercase">Paciente Cirúrgico OPME</p>
+                          </td>
+                          <td className="p-2.5">
+                            <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase">
+                              Paciente Ativo
+                            </span>
+                          </td>
+                          <td className="p-2.5 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              Conforme
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-right pr-3 whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenPacienteModal(p)}
+                                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Editar Paciente"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePaciente(p)}
+                                className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                                title="Excluir Paciente"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -599,13 +632,13 @@ export const CadastrosAuxiliares: React.FC = () => {
             {/* Search & Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
               <div className="relative w-full sm:w-72">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Buscar por código, nome ou especialidade..."
                   value={procedimentoSearch}
                   onChange={(e) => setProcedimentoSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                  className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none"
                 />
               </div>
               <span className="text-[11px] text-slate-400 font-medium">
@@ -617,7 +650,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               </span>
             </div>
 
-            {/* List */}
+            {/* Table */}
             {procedimentos.filter(p =>
               p.descricao.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
               p.codigo.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
@@ -634,66 +667,71 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {procedimentos
-                  .filter(p =>
-                    p.descricao.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
-                    p.codigo.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
-                    (p.especialidade && p.especialidade.toLowerCase().includes(procedimentoSearch.toLowerCase()))
-                  )
-                  .map((p) => (
-                    <div key={p.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 text-xs relative group hover:border-purple-500/40 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black text-xs shrink-0">
-                            <Activity className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className="font-extrabold text-slate-900 dark:text-white text-sm">{p.descricao}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="font-mono text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
-                                TUSS: {p.codigo}
-                              </span>
-                              {p.especialidade && (
-                                <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">
-                                  {p.especialidade}
-                                </span>
-                              )}
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse text-[11px] min-w-[700px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
+                      <th className="p-2.5 pl-3">Cód. TUSS / Rol</th>
+                      <th className="p-2.5">Descrição do Procedimento Cirúrgico</th>
+                      <th className="p-2.5">Especialidade Médica</th>
+                      <th className="p-2.5">Status</th>
+                      <th className="p-2.5 text-right pr-3">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {procedimentos
+                      .filter(p =>
+                        p.descricao.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
+                        p.codigo.toLowerCase().includes(procedimentoSearch.toLowerCase()) ||
+                        (p.especialidade && p.especialidade.toLowerCase().includes(procedimentoSearch.toLowerCase()))
+                      )
+                      .map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-2.5 pl-3 font-mono">
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">TUSS {p.codigo}</span>
+                            <p className="text-[9px] text-slate-400 font-medium">CBHPM / TUSS</p>
+                          </td>
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900 dark:text-white uppercase line-clamp-1">{p.descricao}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-1 uppercase">Protocolos & Mapa Cirúrgico</p>
+                          </td>
+                          <td className="p-2.5">
+                            <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase">
+                              {p.especialidade || 'Ortopedia'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                              p.ativo
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${p.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              {p.ativo ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-right pr-3 whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenProcedimentoModal(p)}
+                                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProcedimento(p)}
+                                className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleOpenProcedimentoModal(p)}
-                            className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
-                            title="Editar"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteProcedimento(p)}
-                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          p.ativo
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
-                            : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${p.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                          {p.ativo ? 'Procedimento Ativo' : 'Inativo'}
-                        </span>
-                        <span className="text-[10px] text-slate-400">Protocolos & Mapa Cirúrgico</span>
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -704,27 +742,29 @@ export const CadastrosAuxiliares: React.FC = () => {
             {/* Search & Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
               <div className="relative w-full sm:w-72">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Buscar produto por código ou descrição..."
                   value={produtoSearch}
                   onChange={(e) => setProdutoSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                  className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none"
                 />
               </div>
               <span className="text-[11px] text-slate-400 font-medium">
                 {produtos.filter(p =>
                   p.descricao.toLowerCase().includes(produtoSearch.toLowerCase()) ||
-                  p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase())
+                  p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase()) ||
+                  (p.fabricante && p.fabricante.toLowerCase().includes(produtoSearch.toLowerCase()))
                 ).length} produtos cadastrados
               </span>
             </div>
 
-            {/* List */}
+            {/* Table */}
             {produtos.filter(p =>
               p.descricao.toLowerCase().includes(produtoSearch.toLowerCase()) ||
-              p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase())
+              p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase()) ||
+              (p.fabricante && p.fabricante.toLowerCase().includes(produtoSearch.toLowerCase()))
             ).length === 0 ? (
               <div className="py-12 text-center text-slate-400 space-y-2">
                 <Package className="w-8 h-8 mx-auto opacity-40 text-emerald-500" />
@@ -737,179 +777,535 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {produtos
-                  .filter(p =>
-                    p.descricao.toLowerCase().includes(produtoSearch.toLowerCase()) ||
-                    p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase())
-                  )
-                  .map((p) => (
-                    <div key={p.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 text-xs relative group hover:border-blue-500/40 transition-colors">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-                            <Package className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-bold text-[10px]">
-                                {p.codigo}
-                              </span>
-                              {p.ativo ? (
-                                <span className="text-[10px] text-emerald-600 font-bold">Ativo</span>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 font-bold">Inativo</span>
-                              )}
-                            </div>
-                            <p className="font-extrabold text-slate-900 dark:text-white text-sm mt-1 leading-snug">
-                              {p.descricao}
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse text-[11px] min-w-[700px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
+                      <th className="p-2.5 pl-3">Código OPME</th>
+                      <th className="p-2.5">Descrição do Material</th>
+                      <th className="p-2.5">Categoria / Grupo</th>
+                      <th className="p-2.5">Status</th>
+                      <th className="p-2.5 text-right pr-3">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {produtos
+                      .filter(p =>
+                        p.descricao.toLowerCase().includes(produtoSearch.toLowerCase()) ||
+                        p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase()) ||
+                        (p.fabricante && p.fabricante.toLowerCase().includes(produtoSearch.toLowerCase()))
+                      )
+                      .map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-2.5 pl-3 font-mono">
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">{p.codigo}</span>
+                            <p className="text-[9px] text-slate-400 font-medium">Unidade: {p.unidade || 'UN'}</p>
+                          </td>
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900 dark:text-white uppercase line-clamp-1">{p.descricao}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-1 uppercase">
+                              {p.fabricante || 'Fabricante Homologado'} {p.anvisa ? `• ANVISA: ${p.anvisa}` : ''}
                             </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => handleOpenProdutoModal(p)}
-                            className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
-                            title="Editar"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteProduto(p)}
-                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                          <td className="p-2.5">
+                            <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase">
+                              {p.categoria || p.grupo || 'Materiais Cirúrgicos'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                              p.ativo
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${p.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              {p.ativo ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-right pr-3 whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenProdutoModal(p)}
+                                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProduto(p)}
+                                className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
         )}
 
         {activeTab === 'hospitais' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {hospitais.map((h) => (
-              <div key={h.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1 text-xs relative group">
-                <div className="flex items-start justify-between">
-                  <p className="font-extrabold text-slate-900 dark:text-white text-sm pr-12">{h.nome}</p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenHospitalModal(h)}
-                      className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
-                      title="Editar"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteHospital(h)}
-                      className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <p className="text-slate-500 font-medium">CNPJ: <span className="font-mono">{h.cnpj}</span></p>
-                <p className="text-slate-500 font-medium">Localidade: {h.cidade} - {h.estado}</p>
-                <p className="text-slate-500 font-medium">Contato: {h.contato_principal || '-'}</p>
+          <div className="space-y-3">
+            {/* Search & Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar hospital por nome, CNPJ ou cidade..."
+                  value={hospitalSearch}
+                  onChange={(e) => setHospitalSearch(e.target.value)}
+                  className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none"
+                />
               </div>
-            ))}
+              <span className="text-[11px] text-slate-400 font-medium">
+                {hospitais.filter(h =>
+                  h.nome.toLowerCase().includes(hospitalSearch.toLowerCase()) ||
+                  (h.cnpj && h.cnpj.includes(hospitalSearch)) ||
+                  (h.cidade && h.cidade.toLowerCase().includes(hospitalSearch.toLowerCase()))
+                ).length} hospitais cadastrados
+              </span>
+            </div>
+
+            {/* Table */}
+            {hospitais.filter(h =>
+              h.nome.toLowerCase().includes(hospitalSearch.toLowerCase()) ||
+              (h.cnpj && h.cnpj.includes(hospitalSearch)) ||
+              (h.cidade && h.cidade.toLowerCase().includes(hospitalSearch.toLowerCase()))
+            ).length === 0 ? (
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <Building2 className="w-8 h-8 mx-auto opacity-40 text-blue-500" />
+                <p className="text-xs font-bold">Nenhum hospital encontrado</p>
+                <button
+                  onClick={() => handleOpenHospitalModal()}
+                  className="text-xs text-blue-600 hover:underline font-bold"
+                >
+                  Cadastrar primeiro hospital
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse text-[11px] min-w-[700px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
+                      <th className="p-2.5 pl-3">ID / Registro</th>
+                      <th className="p-2.5">Hospital Credenciado</th>
+                      <th className="p-2.5">CNPJ</th>
+                      <th className="p-2.5">Contato / Setor OPME</th>
+                      <th className="p-2.5">Status</th>
+                      <th className="p-2.5 text-right pr-3">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {hospitais
+                      .filter(h =>
+                        h.nome.toLowerCase().includes(hospitalSearch.toLowerCase()) ||
+                        (h.cnpj && h.cnpj.includes(hospitalSearch)) ||
+                        (h.cidade && h.cidade.toLowerCase().includes(hospitalSearch.toLowerCase()))
+                      )
+                      .map((h) => (
+                        <tr key={h.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-2.5 pl-3 font-mono">
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                              HOSP-{h.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}
+                            </span>
+                            <p className="text-[9px] text-slate-400 font-medium">Hospital Credenciado</p>
+                          </td>
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900 dark:text-white uppercase line-clamp-1">{h.nome}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-1 uppercase">{h.cidade} - {h.estado}</p>
+                          </td>
+                          <td className="p-2.5 font-mono text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap">
+                            {h.cnpj || '—'}
+                            <p className="text-[9px] text-slate-400 font-normal">CNPJ / Inscrição</p>
+                          </td>
+                          <td className="p-2.5">
+                            <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase">
+                              {h.contato_principal || 'Central Cirúrgica'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                              h.ativo
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${h.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              {h.ativo ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-right pr-3 whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenHospitalModal(h)}
+                                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteHospital(h)}
+                                className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'medicos' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {medicos.map((m) => (
-              <div key={m.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1 text-xs">
-                <div className="flex items-start justify-between">
-                  <p className="font-extrabold text-slate-900 dark:text-white text-sm pr-12">{m.nome}</p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenMedicoModal(m)}
-                      className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
-                      title="Editar"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteMedico(m)}
-                      className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <p className="text-slate-500 font-medium">CRM: <span className="font-mono font-bold">{m.crm}/{m.uf_crm}</span></p>
-                <p className="text-slate-500 font-medium">Especialidade: {m.especialidade}</p>
-                {m.telefone && <p className="text-slate-500 font-medium">Telefone: {m.telefone}</p>}
-                {m.email && <p className="text-slate-500 font-medium">E-mail: {m.email}</p>}
+          <div className="space-y-3">
+            {/* Search & Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar médico por nome, CRM ou especialidade..."
+                  value={medicoSearch}
+                  onChange={(e) => setMedicoSearch(e.target.value)}
+                  className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none"
+                />
               </div>
-            ))}
+              <span className="text-[11px] text-slate-400 font-medium">
+                {medicos.filter(m =>
+                  m.nome.toLowerCase().includes(medicoSearch.toLowerCase()) ||
+                  m.crm.includes(medicoSearch) ||
+                  (m.especialidade && m.especialidade.toLowerCase().includes(medicoSearch.toLowerCase()))
+                ).length} médicos cadastrados
+              </span>
+            </div>
+
+            {/* Table */}
+            {medicos.filter(m =>
+              m.nome.toLowerCase().includes(medicoSearch.toLowerCase()) ||
+              m.crm.includes(medicoSearch) ||
+              (m.especialidade && m.especialidade.toLowerCase().includes(medicoSearch.toLowerCase()))
+            ).length === 0 ? (
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <Stethoscope className="w-8 h-8 mx-auto opacity-40 text-blue-500" />
+                <p className="text-xs font-bold">Nenhum médico encontrado</p>
+                <button
+                  onClick={() => handleOpenMedicoModal()}
+                  className="text-xs text-blue-600 hover:underline font-bold"
+                >
+                  Cadastrar primeiro médico
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse text-[11px] min-w-[700px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
+                      <th className="p-2.5 pl-3">CRM / Conselho</th>
+                      <th className="p-2.5">Médico Cirurgião</th>
+                      <th className="p-2.5">Especialidade Médica</th>
+                      <th className="p-2.5">Contato / Telefone</th>
+                      <th className="p-2.5">Status</th>
+                      <th className="p-2.5 text-right pr-3">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {medicos
+                      .filter(m =>
+                        m.nome.toLowerCase().includes(medicoSearch.toLowerCase()) ||
+                        m.crm.includes(medicoSearch) ||
+                        (m.especialidade && m.especialidade.toLowerCase().includes(medicoSearch.toLowerCase()))
+                      )
+                      .map((m) => (
+                        <tr key={m.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-2.5 pl-3 font-mono">
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                              CRM {m.crm}/{m.uf_crm}
+                            </span>
+                            <p className="text-[9px] text-slate-400 font-medium">Cirurgião Registrado</p>
+                          </td>
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900 dark:text-white uppercase line-clamp-1">{m.nome}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-1 uppercase">{m.email || 'Médico Cirurgião OPME'}</p>
+                          </td>
+                          <td className="p-2.5">
+                            <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase">
+                              {m.especialidade}
+                            </span>
+                          </td>
+                          <td className="p-2.5 font-mono text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap">
+                            {m.telefone || '—'}
+                            <p className="text-[9px] text-slate-400 font-normal">Contato Direto</p>
+                          </td>
+                          <td className="p-2.5 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                              m.ativo
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${m.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              {m.ativo ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-right pr-3 whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenMedicoModal(m)}
+                                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMedico(m)}
+                                className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'convenios' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {convenios.map((c) => (
-              <div key={c.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1 text-xs">
-                <div className="flex items-start justify-between">
-                  <p className="font-extrabold text-slate-900 dark:text-white text-sm">{c.nome}</p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenConvenioModal(c)}
-                      className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
-                      title="Editar"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteConvenio(c)}
-                      className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <p className="text-slate-500 font-medium">Código ANS: <span className="font-mono font-bold">{c.ans_codigo}</span></p>
+          <div className="space-y-3">
+            {/* Search & Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar operadora por nome ou código ANS..."
+                  value={convenioSearch}
+                  onChange={(e) => setConvenioSearch(e.target.value)}
+                  className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none"
+                />
               </div>
-            ))}
+              <span className="text-[11px] text-slate-400 font-medium">
+                {convenios.filter(c =>
+                  c.nome.toLowerCase().includes(convenioSearch.toLowerCase()) ||
+                  (c.ans_codigo && c.ans_codigo.includes(convenioSearch))
+                ).length} convênios cadastrados
+              </span>
+            </div>
+
+            {/* Table */}
+            {convenios.filter(c =>
+              c.nome.toLowerCase().includes(convenioSearch.toLowerCase()) ||
+              (c.ans_codigo && c.ans_codigo.includes(convenioSearch))
+            ).length === 0 ? (
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <HeartHandshake className="w-8 h-8 mx-auto opacity-40 text-blue-500" />
+                <p className="text-xs font-bold">Nenhum convênio encontrado</p>
+                <button
+                  onClick={() => handleOpenConvenioModal()}
+                  className="text-xs text-blue-600 hover:underline font-bold"
+                >
+                  Cadastrar primeiro convênio
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse text-[11px] min-w-[700px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
+                      <th className="p-2.5 pl-3">Registro ANS</th>
+                      <th className="p-2.5">Operadora / Convênio de Saúde</th>
+                      <th className="p-2.5">Modalidade</th>
+                      <th className="p-2.5">Status</th>
+                      <th className="p-2.5 text-right pr-3">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {convenios
+                      .filter(c =>
+                        c.nome.toLowerCase().includes(convenioSearch.toLowerCase()) ||
+                        (c.ans_codigo && c.ans_codigo.includes(convenioSearch))
+                      )
+                      .map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-2.5 pl-3 font-mono">
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                              {c.ans_codigo ? `ANS ${c.ans_codigo}` : `CONV-${c.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`}
+                            </span>
+                            <p className="text-[9px] text-slate-400 font-medium">Registro Órgão ANS</p>
+                          </td>
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900 dark:text-white uppercase line-clamp-1">{c.nome}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-1 uppercase">Saúde Suplementar</p>
+                          </td>
+                          <td className="p-2.5">
+                            <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase">
+                              Operadora Credenciada
+                            </span>
+                          </td>
+                          <td className="p-2.5 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                              c.ativo
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${c.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              {c.ativo ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-right pr-3 whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenConvenioModal(c)}
+                                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteConvenio(c)}
+                                className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'vendedores' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {vendedores.map((v) => (
-              <div key={v.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1 text-xs">
-                <div className="flex items-start justify-between">
-                  <p className="font-extrabold text-slate-900 dark:text-white text-sm">{v.nome}</p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenVendedorModal(v)}
-                      className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
-                      title="Editar"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteVendedor(v)}
-                      className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <p className="text-slate-500 font-medium">E-mail: {v.email || '—'}</p>
-                {v.telefone && <p className="text-slate-500 font-medium">Telefone: {v.telefone}</p>}
+          <div className="space-y-3">
+            {/* Search & Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar vendedor por nome, e-mail ou telefone..."
+                  value={vendedorSearch}
+                  onChange={(e) => setVendedorSearch(e.target.value)}
+                  className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none"
+                />
               </div>
-            ))}
+              <span className="text-[11px] text-slate-400 font-medium">
+                {vendedores.filter(v =>
+                  v.nome.toLowerCase().includes(vendedorSearch.toLowerCase()) ||
+                  (v.email && v.email.toLowerCase().includes(vendedorSearch.toLowerCase())) ||
+                  (v.telefone && v.telefone.includes(vendedorSearch))
+                ).length} representantes cadastrados
+              </span>
+            </div>
+
+            {/* Table */}
+            {vendedores.filter(v =>
+              v.nome.toLowerCase().includes(vendedorSearch.toLowerCase()) ||
+              (v.email && v.email.toLowerCase().includes(vendedorSearch.toLowerCase())) ||
+              (v.telefone && v.telefone.includes(vendedorSearch))
+            ).length === 0 ? (
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <UserCheck className="w-8 h-8 mx-auto opacity-40 text-blue-500" />
+                <p className="text-xs font-bold">Nenhum representante encontrado</p>
+                <button
+                  onClick={() => handleOpenVendedorModal()}
+                  className="text-xs text-blue-600 hover:underline font-bold"
+                >
+                  Cadastrar primeiro representante
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse text-[11px] min-w-[700px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold border-b border-slate-200 dark:border-slate-800">
+                      <th className="p-2.5 pl-3">Matrícula / ID</th>
+                      <th className="p-2.5">Vendedor / Representante</th>
+                      <th className="p-2.5">Telefone / WhatsApp</th>
+                      <th className="p-2.5">Atribuição Comercial</th>
+                      <th className="p-2.5">Status</th>
+                      <th className="p-2.5 text-right pr-3">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {vendedores
+                      .filter(v =>
+                        v.nome.toLowerCase().includes(vendedorSearch.toLowerCase()) ||
+                        (v.email && v.email.toLowerCase().includes(vendedorSearch.toLowerCase())) ||
+                        (v.telefone && v.telefone.includes(vendedorSearch))
+                      )
+                      .map((v) => (
+                        <tr key={v.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-2.5 pl-3 font-mono">
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                              REP-{v.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}
+                            </span>
+                            <p className="text-[9px] text-slate-400 font-medium">Equipe Comercial</p>
+                          </td>
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900 dark:text-white uppercase line-clamp-1">{v.nome}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-1">{v.email || 'comercial@prestymedick.com.br'}</p>
+                          </td>
+                          <td className="p-2.5 font-mono text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap">
+                            {v.telefone || '—'}
+                            <p className="text-[9px] text-slate-400 font-normal">WhatsApp Comercial</p>
+                          </td>
+                          <td className="p-2.5">
+                            <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase">
+                              Representante OPME
+                            </span>
+                          </td>
+                          <td className="p-2.5 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                              v.ativo
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${v.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              {v.ativo ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-right pr-3 whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenVendedorModal(v)}
+                                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteVendedor(v)}
+                                className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
